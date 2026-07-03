@@ -1,0 +1,26 @@
+Package: SyncER
+Title: Synchronization of Event Records
+Version: 0.1.0
+Authors@R: person("Katleen", "Wils", email = "katleen.wils@ugent.be", role = c("aut", "cre"))
+Description: Provides functions for synchronizing age-depth models across
+    sediment core records using isochron age constraints, log-ratio
+    synchronicity testing, and Bayesian age combination.
+License: GPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Imports:
+    readxl,
+    dplyr,
+    stringr,
+    readr,
+    writexl,
+    purrr,
+    ggplot2,
+    pracma,
+    openxlsx
+Suggests:
+    rbacon,
+    rplum,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
