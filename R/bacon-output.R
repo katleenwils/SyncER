@@ -6,7 +6,9 @@
 #' finally call \code{export_to_excel()} to save the processed ages.
 #'
 #' @param folder_path Character string giving the parent directory that contains
-#'   the per-record Bacon output sub-folders.
+#'   the per-record Bacon output sub-folders (default: \code{"."}, i.e. the working
+#'   directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
+#'   and \code{age_model_input()}).
 #' @param synced Character string suffix used to identify synchronized output folders
 #'   (default: \code{""}; non-empty values such as \code{"_synced"} select only folders
 #'   ending with that suffix).
@@ -19,7 +21,7 @@
 #'   element contains the raw text lines of the corresponding \code{.out} file.
 #'
 #' @export
-read_bacon_output <- function(folder_path,
+read_bacon_output <- function(folder_path = ".",
                               synced = "",
                               max_depths = NULL,
                               excluded_depths = NULL) {
@@ -104,8 +106,10 @@ read_bacon_output <- function(folder_path,
 #' @param isochrons Character vector of deposit names that are known to be synchronous.
 #' @param test_horizons Character vector of event deposits for which synchronicity should be tested.
 #' @param excluded_depths Optional named list of excluded depth intervals per record.
-#' @param thick The Bacon thickness parameter; single numeric, named list per record, or NULL
-#'   (extract from folder name).
+#' @param thick The Bacon section thickness; single numeric, named list per record, or NULL
+#'   (default), in which case it is derived per record from the model as
+#'   \code{max_depths[record] / (n_cols - 3)}, i.e. the modelled depth range divided
+#'   by the number of Bacon sections.
 #' @param synced Character string suffix to identify synchronized folders (default: "").
 #'
 #' @return Named list of data frames, one per processed record folder, containing
@@ -164,7 +168,10 @@ extract_event_ages <- function(raw_out_data,
     record_df  <- record_data[[record_name]]
     exclusions <- if (!is.null(excluded_depths)) excluded_depths[[record_name]] else NULL
 
-    # Resolve the thickness multiplier for this record
+    # Resolve the thickness multiplier for this record. When the caller supplies
+    # `thick` we honour it; otherwise it is derived from the model itself below,
+    # once n_cols and the record's max depth are known.
+    thick_value <- NULL
     if (!is.null(thick)) {
       if (is.list(thick)) {
         if (!record_name %in% names(thick)) {
@@ -174,9 +181,6 @@ extract_event_ages <- function(raw_out_data,
       } else {
         thick_value <- thick
       }
-    } else {
-      divisor     <- as.numeric(stringr::str_extract(folder_name, "(\\d+)(?!.*\\d)"))
-      thick_value <- ceiling(divisor)
     }
 
     # Detect separator by checking first non-empty line
@@ -193,6 +197,20 @@ extract_event_ages <- function(raw_out_data,
 
     # Extract maximum depth for this record
     max_depth_original <- max_depths[record_name]
+
+    # Derive the section thickness from the model when the caller did not supply
+    # one. A Bacon .out for this record has (n_cols - 3) depth sections spanning
+    # 0..max_depth, so each section is max_depth / (n_cols - 3) deep. This replaces
+    # the previous heuristic, which read the last number of the folder name (e.g.
+    # "core1" -> 1) and thus used the core index as the thickness -- collapsing
+    # max_depth for low-index cores and silently dropping their deeper events.
+    if (is.null(thick_value)) {
+      if (is.na(max_depth_original) || (n_cols - 3) <= 0) {
+        stop(paste("Cannot derive section thickness for record:", record_name,
+                   "- supply `thick` explicitly."))
+      }
+      thick_value <- max_depth_original / (n_cols - 3)
+    }
 
     # Calculate total excluded depth
     total_excluded <- calculate_excluded_depth(max_depth_original, exclusions)
@@ -281,7 +299,9 @@ extract_event_ages <- function(raw_out_data,
 #' is \code{TRUE} the previously exported Excel file is returned instead.
 #'
 #' @param folder_path Character string giving the parent directory that contains
-#'   per-record Bacon output sub-folders.
+#'   per-record Bacon output sub-folders (default: \code{"."}, i.e. the working
+#'   directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
+#'   and \code{age_model_input()}). Ignored when \code{reload_existing = TRUE}.
 #' @param record_data Named list of data frames representing each record's
 #'   metadata (output from \code{load_excel_data()}).
 #' @param event_types Character vector of all event type names present in your
@@ -295,15 +315,19 @@ extract_event_ages <- function(raw_out_data,
 #' @param reload_existing Logical; when \code{TRUE} reads from an already-exported
 #'   Excel file instead of re-processing \code{.out} files (default: \code{FALSE}).
 #' @param excluded_depths Optional named list of excluded depth intervals per record.
-#' @param thick The Bacon thickness parameter used during age-depth modelling;
-#'   single numeric, named list per record, or \code{NULL} to extract from the
-#'   folder name (default: \code{NULL}).
+#' @param thick The Bacon section thickness used during age-depth modelling;
+#'   single numeric, named list per record, or \code{NULL} (default), in which case
+#'   it is derived per record from the model as \code{max_depths[record] / (n_cols - 3)}.
+#' @param output_dir Character string specifying where the previously-exported
+#'   \code{out_data_ages.xlsx} lives; only used when \code{reload_existing = TRUE}
+#'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in
+#'   the working directory).
 #'
 #' @return Named list of data frames, one per processed record, containing depth
 #'   columns plus one column per event with interpolated ages.
 #'
 #' @export
-extract_ages <- function(folder_path,
+extract_ages <- function(folder_path = ".",
                          record_data,
                          event_types,
                          max_depths,
@@ -312,10 +336,11 @@ extract_ages <- function(folder_path,
                          synced = "",
                          reload_existing = FALSE,
                          excluded_depths = NULL,
-                         thick = NULL) {
+                         thick = NULL,
+                         output_dir = syncer_output_dir()) {
 
   if (reload_existing) {
-    return(read_from_excel(folder_path, synced = synced))
+    return(read_from_excel(output_dir, synced = synced))
   }
 
   raw_out_data <- read_bacon_output(

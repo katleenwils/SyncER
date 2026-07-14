@@ -19,9 +19,12 @@ build_bacon_input(
 
 \item{record_name}{Character string used to identify the record.}
 
-\item{radiocarbon_sample_names}{All labels given to the radiocarbon samples you want to include}
+\item{radiocarbon_sample_names}{Character vector of the event label(s) given to the
+radiocarbon samples you want to include (default: \code{"sample"}).}
 
-\item{lead_sample_names}{All labels given to the Pb210 samples you want to include}
+\item{lead_sample_names}{Character vector of the event label(s) given to the Pb-210 (lead)
+samples you want to include (default: \code{"210Pb_sample"}); leave blank if you only
+consider radiocarbon ages.}
 
 \item{adjusted_ages}{Optional list output from \code{set_to_zero()} containing adjusted ages,
 errors, and depths per horizon (default: NULL).}

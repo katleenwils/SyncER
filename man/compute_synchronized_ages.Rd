@@ -28,28 +28,71 @@ compute_synchronized_ages(
 
 \item{synchro_results}{Results from \code{verify_synchronicity()}.}
 
-\item{method}{Character string or named vector specifying synchronization method(s):
-"mean", "mean_fixederror", "Bayesian", "ageofrecord", or "age" (default: NULL).}
+\item{method}{Character string or named character vector specifying the synchronization
+method(s) used to assign a fixed age (and thus set the age difference between records to
+zero) for each horizon. Supply a single string to apply one method to every horizon in
+\code{horizons}, or a named vector (\code{c(isochron1 = "mean_fixederror",
+isochron2 = "age")}) to use different methods for different horizons. Any horizon listed in
+\code{horizons} but not named here falls back to \code{"mean"}. One of the following
+(default: \code{NULL}, i.e. \code{"mean"} for every horizon):
+\itemize{
+\item \code{"mean"} -- uses the mean and standard deviation of the available age
+estimates across records. Recommended when the actual age is unknown (default).
+\item \code{"mean_fixederror"} -- uses the mean of the available age estimates but
+applies an arbitrarily small, user-supplied error (via \code{age_error}).
+Recommended when the actual age is unknown and you want to be very strict for
+synchronicity testing.
+\item \code{"Bayesian"} -- combines the per-record age PDFs using the Bayesian rules
+for combination of probabilities (Bayes 1763; Doran and Hodgson 1975; see
+\url{https://c14.arch.ox.ac.uk/oxcal3/math_ca.htm#comb}). Recommended when the
+actual age is unknown but the age-depth models are assumed to be accurate.
+\item \code{"ageofrecord"} -- adopts the age estimate of one specific record (chosen
+via \code{age_record}). Recommended when there are clear indications that one age
+model is more accurate than the others.
+\item \code{"age"} -- assigns a specific, externally-known age and error (via
+\code{age_value}, \code{age_error} and \code{age_cc}). Recommended when independent
+calibrated age information is available.
+}}
 
-\item{horizons}{Character vector of horizon names (default: NULL).}
+\item{horizons}{Character vector of the horizon names to synchronize (default: \code{NULL}).
+Include every horizon you want to assign a fixed age to. Horizons listed here without an
+explicit entry in \code{method} are synchronized with \code{"mean"}.}
 
-\item{excluded_horizons}{Named or unnamed character vector of horizons to exclude (default: NULL).}
+\item{excluded_horizons}{Named or unnamed character vector (or list) of horizons to leave out
+of the synchronization (default: \code{NULL}). Name an entry after a record to exclude a
+horizon only for that record (\code{list("core2_synced" = "synchro-test-wrong")}, e.g. a
+layer you tested but consider non-synchronous in that record). Use the key \code{"global"}
+(or an unnamed entry) to exclude a tested horizon set from every record.}
 
-\item{excluded_records}{Character vector or named list of records to exclude from pooled
-calculations (default: NULL).}
+\item{excluded_records}{Character vector or named list of records to exclude from the pooled
+(\code{"mean"}, \code{"mean_fixederror"}, \code{"Bayesian"}) age calculations (default:
+\code{NULL}) -- e.g. a record with unreliable age information. Pass a character vector
+(\code{c("core3")}) to exclude the record(s) for every horizon, or a named list
+(\code{list("isochron3" = "core3")}) to exclude a record only for specific horizons.}
 
-\item{age_record}{Character string for \code{method = "ageofrecord"} (default: NULL).}
+\item{age_record}{Character string naming the record whose age estimate is adopted when
+\code{method = "ageofrecord"} (default: \code{NULL}).}
 
-\item{age_value}{Numeric value or named vector for \code{method = "age"} (default: NULL).}
+\item{age_value}{Numeric value or named vector giving the age(s) to assign when
+\code{method = "age"} (default: \code{NULL}). Name the entries after the horizons
+(\code{c("isochron2" = 1100, "isochron5" = 4100)}) when several horizons use this method.}
 
-\item{age_error}{Numeric value or named vector of age errors (default: NULL).}
+\item{age_error}{Numeric value or named vector of age errors (default: \code{NULL}). Required
+for \code{method = "age"} (1-sigma error on \code{age_value}) and for
+\code{method = "mean_fixederror"} (the small fixed error to apply); name the entries after
+the horizons when several are involved (\code{c("isochron1" = 10, "isochron2" = 20)}).}
 
-\item{age_cc}{Numeric value or named vector of calibration curve codes (default: NULL).}
+\item{age_cc}{Numeric value or named vector of calibration-curve codes used with
+\code{method = "age"} (default: \code{NULL}; \code{0} = no calibration / calendar ages,
+\code{1} = IntCal20, \code{2} = Marine20, \code{3} = SHCal20).}
 
 \item{offset}{Numeric offset correction value (default: \code{bp_datum()}, i.e.
 the current year minus 1950).}
 
 \item{seed}{Integer random seed for reproducibility (default: 5128).}
+
+\item{n_samples}{Integer number of Monte Carlo samples drawn per record by the methods
+that resample posterior ages (default: 10000).}
 
 \item{bayes_plot_opts}{Named list of Bayesian plot layout options. Supported keys:
 \code{fig_width}, \code{fig_height}, \code{plot_range_sigma}, \code{posterior_lwd},

@@ -5,7 +5,7 @@
 \title{Extract Event Ages from Bacon Output Files}
 \usage{
 extract_ages(
-  folder_path,
+  folder_path = ".",
   record_data,
   event_types,
   max_depths,
@@ -14,12 +14,15 @@ extract_ages(
   synced = "",
   reload_existing = FALSE,
   excluded_depths = NULL,
-  thick = NULL
+  thick = NULL,
+  output_dir = syncer_output_dir()
 )
 }
 \arguments{
 \item{folder_path}{Character string giving the parent directory that contains
-per-record Bacon output sub-folders.}
+per-record Bacon output sub-folders (default: \code{"."}, i.e. the working
+directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
+and \code{age_model_input()}). Ignored when \code{reload_existing = TRUE}.}
 
 \item{record_data}{Named list of data frames representing each record's
 metadata (output from \code{load_excel_data()}).}
@@ -42,9 +45,14 @@ Excel file instead of re-processing \code{.out} files (default: \code{FALSE}).}
 
 \item{excluded_depths}{Optional named list of excluded depth intervals per record.}
 
-\item{thick}{The Bacon thickness parameter used during age-depth modelling;
-single numeric, named list per record, or \code{NULL} to extract from the
-folder name (default: \code{NULL}).}
+\item{thick}{The Bacon section thickness used during age-depth modelling;
+single numeric, named list per record, or \code{NULL} (default), in which case
+it is derived per record from the model as \code{max_depths[record] / (n_cols - 3)}.}
+
+\item{output_dir}{Character string specifying where the previously-exported
+\code{out_data_ages.xlsx} lives; only used when \code{reload_existing = TRUE}
+(default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in
+the working directory).}
 }
 \value{
 Named list of data frames, one per processed record, containing depth

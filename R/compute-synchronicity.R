@@ -5,9 +5,24 @@
 #'
 #' @param event_stats Output from \code{process_event_ages()}.
 #' @param event_names Character vector of event names to test.
-#' @param confidence_level Numeric value or named vector of confidence levels (default: 0.95).
-#' @param age_difference Numeric value or named vector of max allowable age differences (default: 0.05).
-#' @param isochron Logical; triggers summary warning when failure rate > 10% (default: FALSE).
+#' @param confidence_level Numeric value or named vector giving the confidence level (a ratio)
+#'   at which synchronicity is tested (default: \code{0.95}). Only correlations whose
+#'   synchronicity score exceeds this value pass the test -- e.g. with
+#'   \code{confidence_level = 0.95}, only pairs scoring higher than 0.95 are counted as passes.
+#'   Supply a named vector to use different confidence levels per horizon.
+#' @param age_difference Numeric value or named vector giving the maximum age difference between
+#'   two records that is still considered synchronous (default: \code{0.05}). Interpreted in one
+#'   of two ways depending on its magnitude:
+#'   \itemize{
+#'     \item Values \code{< 1} are treated as a \emph{relative} (proportional) age difference.
+#'           For example, \code{age_difference = 0.05} means the synchronicity score reports the
+#'           confidence with which the maximum age difference between the two records is 5\%.
+#'     \item Values \code{>= 1} are treated as an \emph{absolute} age difference in years
+#'           (e.g. \code{10} for 10 yr), converted internally to a relative difference using the
+#'           horizon's mean age.
+#'   }
+#'   Supply a named vector to set different values for different horizons; include one unnamed
+#'   (or last) value to act as the default for any horizon not named.
 #' @param horizon_groups Named list mapping group names to character vectors of horizon names
 #'   that belong to each group (e.g., \code{list(tephra = c("tephra1", "tephra1a"))}). When
 #'   \code{NULL} (default) each horizon in \code{event_names} is treated as standalone. Use
@@ -33,7 +48,6 @@ compute_synchronicity <- function(event_stats,
                                   event_names,
                                   confidence_level = 0.95,
                                   age_difference = 0.05,
-                                  isochron = FALSE,
                                   horizon_groups = NULL,
                                   n_samples = 10000,
                                   seed = 5128) {
@@ -325,24 +339,32 @@ compute_synchronicity <- function(event_stats,
 #' Call \code{compute_synchronicity()} first and pass its result here.
 #'
 #' @param synchro_result The list returned by \code{compute_synchronicity()}.
-#' @param event_names Character vector of event names (used to build the CSV filename).
-#' @param output_dir Character string specifying path where results folder "synchro_test"
-#'   will be created.
+#' @param event_names Character vector of event names being tested. Falls back to
+#'   naming the CSV file when \code{group_name} is not supplied.
+#' @param output_dir Character string specifying the directory the statistics CSV will be
+#'   saved to (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs}
+#'   folder in the working directory).
+#' @param group_name Character string used to name the CSV file (as
+#'   \code{"<group_name>_stats.csv"}), representing the horizon group being tested
+#'   as a whole rather than every individual horizon name in \code{event_names}. When
+#'   \code{NULL} (default), defaults to \code{"isochron"} if \code{isochron = TRUE}, or
+#'   to all of \code{event_names} pasted together otherwise.
 #' @param synced Character string appended to output filenames (default: \code{""}).
 #' @param isochron Logical; when \code{TRUE} a warning is shown if >10\% of comparisons
-#'   fail (default: \code{FALSE}).
+#'   fail, and the CSV file is named \code{"isochron"} by default (default: \code{FALSE}).
 #' @param offset Numeric offset correction value passed to \code{plot_synchronicity()}
 #'   (default: \code{bp_datum()}, i.e. the current year minus 1950).
 #' @param fig_width Numeric width of output PDF figures in inches (default: 10).
 #' @param fig_height Numeric height of output PDF figures in inches (default: 8).
-#' @param plot_opts List of additional plot options passed to \code{create_visualization()}.
+#' @inheritParams create_visualization
 #'
 #' @return Invisibly returns \code{synchro_result} unchanged.
 #'
 #' @export
 verify_synchronicity <- function(synchro_result,
                                  event_names,
-                                 output_dir,
+                                 output_dir = syncer_output_dir(),
+                                 group_name = NULL,
                                  synced = "",
                                  isochron = FALSE,
                                  offset = bp_datum(),
@@ -352,12 +374,15 @@ verify_synchronicity <- function(synchro_result,
 
   synchro <- synchro_result
 
+  if (is.null(group_name)) {
+    group_name <- if (isochron) "isochron" else paste(event_names, collapse = "_")
+  }
+
   # Save CSV statistics
   if (nrow(synchro$all_horizon_stats) > 0) {
-    dir.create(file.path(output_dir, "synchro_test"), recursive = TRUE, showWarnings = FALSE)
-    csv_name   <- paste(event_names, collapse = "_")
-    stats_file <- file.path(output_dir, "synchro_test",
-                            paste0(csv_name, "_stats", synced, ".csv"))
+    dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+    stats_file <- file.path(output_dir,
+                            paste0(group_name, "_stats", synced, ".csv"))
     write.csv(synchro$all_horizon_stats, stats_file, row.names = FALSE)
     cat(sprintf("\nAll horizon statistics saved to: %s\n", stats_file))
   }
@@ -392,4 +417,170 @@ verify_synchronicity <- function(synchro_result,
   )
 
   invisible(synchro_result)
+}
+
+#' Calculate Validation Thresholds from Synchronized Data
+#'
+#' Calculates empirically-based validation thresholds and confidence levels from synchronized
+#' age data for use in subsequent synchronicity testing.
+#'
+#' @param adjusted_ages Output from \code{set_to_zero()} containing synchronized ages and errors.
+#' @param sigma_multiplier Numeric value or named vector giving the user-defined confidence
+#'   level on the age interval, expressed as a standard-deviation multiplier (default: \code{2},
+#'   i.e. ~95.4\% confidence on the age; use \code{1} for ~68.3\% or \code{3} for ~99.7\%). This
+#'   sets how wide an age difference each isochron's assigned error implies, and therefore what
+#'   \code{age_difference} values are reasonable when testing nearby unknown deposits. Supply a
+#'   named vector to use a different multiplier per horizon.
+#' @param age_offset Numeric offset value that was added to ages to avoid negative values
+#'   (default: \code{bp_datum()}, i.e. the current year minus 1950). This offset is subtracted
+#'   before calculating the coefficient of variation to ensure CV is based on true ages, not
+#'   offset ages.
+#'
+#' @return Named list containing:
+#'   \itemize{
+#'     \item \code{validation_thresholds}: Named numeric vector of age difference thresholds
+#'           (as proportions)
+#'     \item \code{confidence_levels}: Named numeric vector of corresponding confidence levels
+#'           (as proportions)
+#'     \item \code{sigma_values}: Named numeric vector of sigma multipliers used per horizon
+#'     \item \code{empirical_cv}: Named numeric vector of empirical coefficients of variation
+#'     \item \code{age_offset}: The age offset value used during threshold calculation
+#'   }
+#'
+#' @details Calculates the coefficient of variation (CV = sigma/mu) from synchronized ages,
+#'   multiplies by user-specified sigma values to generate age difference thresholds, and
+#'   converts sigma values to confidence levels using the standard normal distribution.
+#'   The age offset is removed before calculating CV to ensure it reflects true age variability.
+#'   These thresholds can be directly used in \code{verify_synchronicity()} for validation testing.
+#'
+#' @examples
+#' \dontrun{
+#' # Single sigma for all horizons
+#' thresholds <- calculate_validation_thresholds(adjusted_ages, sigma_multiplier = 2)
+#'
+#' # Different sigma per horizon
+#' thresholds <- calculate_validation_thresholds(
+#'   adjusted_ages,
+#'   sigma_multiplier = c(horizon1 = 2, horizon2 = 1, horizon3 = 1.5)
+#' )
+#'
+#' # With custom age offset
+#' thresholds <- calculate_validation_thresholds(
+#'   adjusted_ages,
+#'   sigma_multiplier = 2,
+#'   age_offset = 100
+#' )
+#'
+#' # Use in verify_synchronicity
+#' verify_synchronicity(
+#'   event_stats,
+#'   event_names = names(thresholds$validation_thresholds),
+#'   confidence_level = thresholds$confidence_levels,
+#'   age_difference = thresholds$validation_thresholds
+#' )
+#' }
+#'
+#' @export
+calculate_validation_thresholds <- function(adjusted_ages,
+                                            sigma_multiplier = 2,
+                                            age_offset = bp_datum()) {
+  
+  # Validate inputs
+  if (!is.list(adjusted_ages) || length(adjusted_ages) == 0) {
+    stop("adjusted_ages must be a non-empty list")
+  }
+  
+  if (!is.numeric(sigma_multiplier) || any(sigma_multiplier <= 0)) {
+    stop("sigma_multiplier must be positive numeric value(s)")
+  }
+  
+  if (!is.numeric(age_offset) || length(age_offset) != 1) {
+    stop("age_offset must be a single numeric value")
+  }
+  
+  # Calculate empirical coefficient of variation for each horizon
+  # CV = sigma / |mu|
+  empirical_cv <- vapply(adjusted_ages, function(x) {
+    if (!"adjusted_error" %in% names(x) || !"adjusted_age" %in% names(x)) {
+      stop("Each element in adjusted_ages must have 'adjusted_error' and 'adjusted_age' columns")
+    }
+    
+    # adjusted_ages stores ages relative to the offset-subtracted baseline.
+    # Add the offset back to recover the true age (in cal yrs BP) before computing CV.
+    true_age <- x$adjusted_age[1] + age_offset
+    
+    # CV based on true age, not offset age
+    x$adjusted_error[1] / abs(true_age)
+  }, numeric(1))
+  
+  # Determine sigma multiplier for each horizon
+  if (is.null(names(sigma_multiplier))) {
+    # Single value for all horizons
+    sigma_values <- setNames(rep(sigma_multiplier[1], length(empirical_cv)),
+                             names(empirical_cv))
+  } else {
+    # Named vector - match horizon names
+    sigma_values <- vapply(names(empirical_cv), function(horizon) {
+      if (horizon %in% names(sigma_multiplier)) {
+        sigma_multiplier[[horizon]]
+      } else {
+        # Default to first value if horizon not specified
+        warning(sprintf(
+          "Horizon '%s' not found in sigma_multiplier, using default value %.1f",
+          horizon, sigma_multiplier[1]
+        ))
+        sigma_multiplier[1]
+      }
+    }, numeric(1))
+    names(sigma_values) <- names(empirical_cv)
+  }
+  
+  # Calculate validation thresholds
+  # Threshold = 2 * sigma * CV (the factor of 2 accounts for +/- range)
+  validation_thresholds <- 2 * sigma_values * empirical_cv
+  
+  # Convert sigma to confidence level
+  # Using standard normal distribution: P(-sigma < Z < sigma)
+  sigma_to_confidence <- function(sigma) {
+    2 * pnorm(sigma) - 1
+  }
+  
+  confidence_levels <- vapply(sigma_values, sigma_to_confidence, numeric(1))
+  
+  return(list(
+    validation_thresholds = validation_thresholds,
+    confidence_levels = confidence_levels,
+    sigma_values = sigma_values,
+    empirical_cv = empirical_cv,
+    age_offset = age_offset
+  ))
+}
+
+#' Print Validation Thresholds Summary
+#'
+#' Prints a formatted summary table of the thresholds returned by
+#' \code{calculate_validation_thresholds()}.
+#'
+#' @param thresholds Output list from \code{calculate_validation_thresholds()}.
+#'
+#' @return Invisibly returns \code{thresholds} (unchanged).
+#'
+#' @export
+print_validation_summary <- function(thresholds) {
+  cat("\n=== Validation Thresholds Summary ===\n")
+  cat(sprintf("Age offset used: %.0f years\n", thresholds$age_offset))
+  cat(sprintf("%-20s %10s %10s %12s %12s\n",
+              "Horizon", "Sigma", "Conf. %", "CV %", "Threshold %"))
+  cat(strrep("-", 66), "\n")
+  
+  for (horizon in names(thresholds$validation_thresholds)) {
+    cat(sprintf("%-20s %10.1f %10.1f %12.2f %12.2f\n",
+                horizon,
+                thresholds$sigma_values[[horizon]],
+                thresholds$confidence_levels[[horizon]] * 100,
+                thresholds$empirical_cv[[horizon]] * 100,
+                thresholds$validation_thresholds[[horizon]] * 100))
+  }
+  cat(strrep("=", 66), "\n\n")
+  invisible(thresholds)
 }
