@@ -9,7 +9,6 @@ compute_synchronicity(
   event_names,
   confidence_level = 0.95,
   age_difference = 0.05,
-  isochron = FALSE,
   horizon_groups = NULL,
   n_samples = 10000,
   seed = 5128
@@ -20,11 +19,25 @@ compute_synchronicity(
 
 \item{event_names}{Character vector of event names to test.}
 
-\item{confidence_level}{Numeric value or named vector of confidence levels (default: 0.95).}
+\item{confidence_level}{Numeric value or named vector giving the confidence level (a ratio)
+at which synchronicity is tested (default: \code{0.95}). Only correlations whose
+synchronicity score exceeds this value pass the test -- e.g. with
+\code{confidence_level = 0.95}, only pairs scoring higher than 0.95 are counted as passes.
+Supply a named vector to use different confidence levels per horizon.}
 
-\item{age_difference}{Numeric value or named vector of max allowable age differences (default: 0.05).}
-
-\item{isochron}{Logical; triggers summary warning when failure rate > 10\% (default: FALSE).}
+\item{age_difference}{Numeric value or named vector giving the maximum age difference between
+two records that is still considered synchronous (default: \code{0.05}). Interpreted in one
+of two ways depending on its magnitude:
+\itemize{
+\item Values \code{< 1} are treated as a \emph{relative} (proportional) age difference.
+For example, \code{age_difference = 0.05} means the synchronicity score reports the
+confidence with which the maximum age difference between the two records is 5\\%.
+\item Values \code{>= 1} are treated as an \emph{absolute} age difference in years
+(e.g. \code{10} for 10 yr), converted internally to a relative difference using the
+horizon's mean age.
+}
+Supply a named vector to set different values for different horizons; include one unnamed
+(or last) value to act as the default for any horizon not named.}
 
 \item{horizon_groups}{Named list mapping group names to character vectors of horizon names
 that belong to each group (e.g., \code{list(tephra = c("tephra1", "tephra1a"))}). When

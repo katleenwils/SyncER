@@ -13,8 +13,8 @@ plot_bayesian_combination(pd, output_dir = NULL)
 \code{valid_records}, \code{mu_comb}, \code{sigma_comb}, \code{group_name},
 and \code{bayes_opts}.}
 
-\item{output_dir}{Character string; directory in which the \code{synchro_test}
-sub-folder is created for the PDF. Pass \code{NULL} to skip PDF output.}
+\item{output_dir}{Character string; directory the PDF is saved to. Pass
+\code{NULL} to skip PDF output.}
 }
 \value{
 Invisibly returns \code{NULL}.

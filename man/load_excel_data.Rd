@@ -4,12 +4,20 @@
 \alias{load_excel_data}
 \title{Load Record Data}
 \usage{
-load_excel_data(folder_path, file_name = "record_data_input.xlsx")
+load_excel_data(folder_path = ".", file_name = "record_data_input.xlsx")
 }
 \arguments{
-\item{folder_path}{Character string specifying the path to the folder containing your input file.}
+\item{folder_path}{Character string specifying the path to the folder containing your input file
+(default: \code{"."}, i.e. the working directory set by \code{syncer_setup()}).}
 
-\item{file_name}{Character string specifying the name of your input Excel file (default: "record_data_input.xlsx").}
+\item{file_name}{Character string specifying the name of your input Excel file (default:
+\code{"record_data_input.xlsx"}). This workbook holds one \strong{sheet per record}, and
+each sheet gives, for every dated sample and for the record top, the \code{depth},
+\code{C14_age} and \code{C14_error}, together with the radiocarbon calibration curve code in
+the \code{cc} column (\code{0} = no calibration / calendar ages, \code{1} = IntCal20,
+\code{2} = Marine20, \code{3} = SHCal20). The sheet must also list the depths of the
+considered event deposits; these depths may be given either as event-free depth or as total
+depth.}
 }
 \value{
 A named list with three elements:

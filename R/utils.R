@@ -37,13 +37,14 @@ shape_ok <- function(x, critical_z = 1.96) {
 #' Current BP Datum (Year - 1950)
 #'
 #' Returns the number of years elapsed since the radiocarbon BP datum (1950),
-#' calculated from the current system date. Use this as the default \code{offset}
-#' argument instead of a hardcoded value so the default stays correct in future years.
+#' calculated from the current system date. Used as the default \code{offset}/
+#' \code{age_offset} argument throughout \emph{SyncER} instead of a hardcoded
+#' value, so the default stays correct in future years.
 #'
 #' @return Integer: current year minus 1950.
 #'
-#' @keywords internal
-bp_datum <- function() as.integer(format(Sys.Date(), "%Y")) - 1950
+#' @export
+bp_datum <- function() as.integer(format(Sys.Date(), "%Y")) - 1950L
 
 #' Build Group Lookup from Horizon Groups
 #'

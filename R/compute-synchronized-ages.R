@@ -6,19 +6,61 @@
 #' @param event_stats List containing processed age data and summaries (output from
 #'   \code{process_event_ages()}).
 #' @param synchro_results Results from \code{verify_synchronicity()}.
-#' @param method Character string or named vector specifying synchronization method(s):
-#'   "mean", "mean_fixederror", "Bayesian", "ageofrecord", or "age" (default: NULL).
-#' @param horizons Character vector of horizon names (default: NULL).
-#' @param excluded_horizons Named or unnamed character vector of horizons to exclude (default: NULL).
-#' @param excluded_records Character vector or named list of records to exclude from pooled
-#'   calculations (default: NULL).
-#' @param age_record Character string for \code{method = "ageofrecord"} (default: NULL).
-#' @param age_value Numeric value or named vector for \code{method = "age"} (default: NULL).
-#' @param age_error Numeric value or named vector of age errors (default: NULL).
-#' @param age_cc Numeric value or named vector of calibration curve codes (default: NULL).
+#' @param method Character string or named character vector specifying the synchronization
+#'   method(s) used to assign a fixed age (and thus set the age difference between records to
+#'   zero) for each horizon. Supply a single string to apply one method to every horizon in
+#'   \code{horizons}, or a named vector (\code{c(isochron1 = "mean_fixederror",
+#'   isochron2 = "age")}) to use different methods for different horizons. Any horizon listed in
+#'   \code{horizons} but not named here falls back to \code{"mean"}. One of the following
+#'   (default: \code{NULL}, i.e. \code{"mean"} for every horizon):
+#'   \itemize{
+#'     \item \code{"mean"} -- uses the mean and standard deviation of the available age
+#'           estimates across records. Recommended when the actual age is unknown (default).
+#'     \item \code{"mean_fixederror"} -- uses the mean of the available age estimates but
+#'           applies an arbitrarily small, user-supplied error (via \code{age_error}).
+#'           Recommended when the actual age is unknown and you want to be very strict for
+#'           synchronicity testing.
+#'     \item \code{"Bayesian"} -- combines the per-record age PDFs using the Bayesian rules
+#'           for combination of probabilities (Bayes 1763; Doran and Hodgson 1975; see
+#'           \url{https://c14.arch.ox.ac.uk/oxcal3/math_ca.htm#comb}). Recommended when the
+#'           actual age is unknown but the age-depth models are assumed to be accurate.
+#'     \item \code{"ageofrecord"} -- adopts the age estimate of one specific record (chosen
+#'           via \code{age_record}). Recommended when there are clear indications that one age
+#'           model is more accurate than the others.
+#'     \item \code{"age"} -- assigns a specific, externally-known age and error (via
+#'           \code{age_value}, \code{age_error} and \code{age_cc}). Recommended when independent
+#'           calibrated age information is available.
+#'   }
+#' @param horizons Character vector of the horizon names to synchronize (default: \code{NULL}).
+#'   Include every horizon you want to assign a fixed age to. Horizons listed here without an
+#'   explicit entry in \code{method} are synchronized with \code{"mean"}.
+#' @param excluded_horizons Named or unnamed character vector (or list) of horizons to leave out
+#'   of the synchronization (default: \code{NULL}). Name an entry after a record to exclude a
+#'   horizon only for that record (\code{list("core2_synced" = "synchro-test-wrong")}, e.g. a
+#'   layer you tested but consider non-synchronous in that record). Use the key \code{"global"}
+#'   (or an unnamed entry) to exclude a tested horizon set from every record.
+#' @param excluded_records Character vector or named list of records to exclude from the pooled
+#'   (\code{"mean"}, \code{"mean_fixederror"}, \code{"Bayesian"}) age calculations (default:
+#'   \code{NULL}) -- e.g. a record with unreliable age information. Pass a character vector
+#'   (\code{c("core3")}) to exclude the record(s) for every horizon, or a named list
+#'   (\code{list("isochron3" = "core3")}) to exclude a record only for specific horizons.
+#' @param age_record Character string naming the record whose age estimate is adopted when
+#'   \code{method = "ageofrecord"} (default: \code{NULL}).
+#' @param age_value Numeric value or named vector giving the age(s) to assign when
+#'   \code{method = "age"} (default: \code{NULL}). Name the entries after the horizons
+#'   (\code{c("isochron2" = 1100, "isochron5" = 4100)}) when several horizons use this method.
+#' @param age_error Numeric value or named vector of age errors (default: \code{NULL}). Required
+#'   for \code{method = "age"} (1-sigma error on \code{age_value}) and for
+#'   \code{method = "mean_fixederror"} (the small fixed error to apply); name the entries after
+#'   the horizons when several are involved (\code{c("isochron1" = 10, "isochron2" = 20)}).
+#' @param age_cc Numeric value or named vector of calibration-curve codes used with
+#'   \code{method = "age"} (default: \code{NULL}; \code{0} = no calibration / calendar ages,
+#'   \code{1} = IntCal20, \code{2} = Marine20, \code{3} = SHCal20).
 #' @param offset Numeric offset correction value (default: \code{bp_datum()}, i.e.
 #'   the current year minus 1950).
 #' @param seed Integer random seed for reproducibility (default: 5128).
+#' @param n_samples Integer number of Monte Carlo samples drawn per record by the methods
+#'   that resample posterior ages (default: 10000).
 #' @param bayes_plot_opts Named list of Bayesian plot layout options. Supported keys:
 #'   \code{fig_width}, \code{fig_height}, \code{plot_range_sigma}, \code{posterior_lwd},
 #'   \code{combined_lwd}, \code{legend_pos}.
@@ -344,27 +386,37 @@ compute_synchronized_ages <- function(event_stats,
                      ref_record, group_name))
       }
 
-      # Calculate ALR for each non-reference record
+      # Determine which non-reference records have usable samples first, so the
+      # shared reference draw below is sized correctly and unaffected by records
+      # that end up excluded.
+      candidate_recs <- setdiff(names(calc_ages_list), ref_record)
+      valid_recs <- Filter(function(rec) {
+        s <- calc_ages_list[[rec]]
+        if (is.null(s) || length(s) == 0) {
+          warning(sprintf("Record '%s' has no posterior samples. Skipping from ALR.", rec))
+          FALSE
+        } else {
+          TRUE
+        }
+      }, candidate_recs)
+
       alr_matrix <- list()
 
-      for (rec in names(calc_ages_list)) {
-        if (rec == ref_record) next
-
-        rec_samples <- calc_ages_list[[rec]]
-
-        if (is.null(rec_samples) || length(rec_samples) == 0) {
-          warning(sprintf("Record '%s' has no posterior samples. Skipping from ALR.", rec))
-          next
-        }
-
-        # Sample to ensure consistent length
-        n_samp <- min(length(ref_samples), length(rec_samples), n_samples)
+      if (length(valid_recs) > 0) {
+        # The reference record's resample is drawn ONCE and reused across every
+        # non-reference column, since all comparisons share the same single
+        # (uncertain) reference age -- resampling it independently per column
+        # would treat each comparison as if it had its own separate reference
+        # record, erasing the correlation this (k-1)-dimensional distribution
+        # is meant to capture. Each non-reference record is still resampled
+        # independently, reflecting that their age models are unrelated.
+        n_samp   <- min(vapply(calc_ages_list[c(ref_record, valid_recs)], length, integer(1)), n_samples)
         ref_samp <- sample(ref_samples, n_samp, replace = TRUE)
-        rec_samp <- sample(rec_samples, n_samp, replace = TRUE)
 
-        # Calculate log-ratio
-        alr_vec <- log(rec_samp / ref_samp)
-        alr_matrix[[rec]] <- alr_vec
+        for (rec in valid_recs) {
+          rec_samp <- sample(calc_ages_list[[rec]], n_samp, replace = TRUE)
+          alr_matrix[[rec]] <- log(rec_samp / ref_samp)
+        }
       }
 
       if (length(alr_matrix) == 0) {
@@ -406,6 +458,9 @@ compute_synchronized_ages <- function(event_stats,
       # Calculate adjusted age and error
       adj_age_value <- mean_age - offset
       adj_error_value <- abs(mean_age) * cv
+
+      cat(sprintf("Using mean age for %s \nAdjusted age: %.1f +/- %.1f cal yrs BP\n\n",
+                  group_name, adj_age_value, adj_error_value))
 
       # Build output dataframe
       adjusted_ages_df <- data.frame(
@@ -454,6 +509,9 @@ compute_synchronized_ages <- function(event_stats,
       # Calculate adjusted values
       adj_age_value <- mean_age - offset
       adj_error_value <- fixed_error
+
+      cat(sprintf("Using mean age with fixed error for %s \nAdjusted age: %.1f +/- %.1f cal yrs BP\n\n",
+                  group_name, adj_age_value, adj_error_value))
 
       # Build output
       adjusted_ages_df <- data.frame(
@@ -691,8 +749,9 @@ compute_synchronized_ages <- function(event_stats,
 #' Calls \code{compute_synchronized_ages()} and saves Bayesian combination plots to PDF.
 #'
 #' @inheritParams compute_synchronized_ages
-#' @param output_dir Character string specifying the directory in which the
-#'   "synchro_test" subfolder will be created for Bayesian plot PDFs.
+#' @param output_dir Character string specifying the directory Bayesian plot PDFs will be
+#'   saved to (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs}
+#'   folder in the working directory).
 #' @param seed Integer random seed for reproducibility (default: 5128).
 #' @param bayes_plot_opts Named list of Bayesian plot layout options passed to
 #'   \code{compute_synchronized_ages()}. Supported keys: \code{fig_width},
@@ -705,7 +764,7 @@ compute_synchronized_ages <- function(event_stats,
 #' @export
 set_to_zero <- function(event_stats,
                         synchro_results,
-                        output_dir,
+                        output_dir = syncer_output_dir(),
                         method = NULL,
                         horizons = NULL,
                         excluded_horizons = NULL,
@@ -743,102 +802,6 @@ set_to_zero <- function(event_stats,
   }
 
   invisible(result$adjusted_ages)
-}
-
-#' Assign Ages to Excluded Horizons
-#'
-#' Assigns synchronized ages to horizons that were excluded from the main synchronization process.
-#'
-#' @param adjusted_ages Output from \code{set_to_zero()} containing synchronized ages.
-#' @param excluded_horizons Named or unnamed character vector specifying excluded horizons
-#'   (same format as in \code{set_to_zero()}).
-#' @param event_stats Output from \code{process_event_ages()} containing record metadata.
-#'
-#' @return Named list with one element per excluded horizon, each containing a data frame
-#'   with columns: \code{record}, \code{adjusted_age}, \code{adjusted_error}.
-#'
-#' @details For each excluded horizon, assigns the age and error from the first available
-#'   non-excluded horizon in the same record. Parses exclusions using the same logic as
-#'   \code{set_to_zero()} (named for per-record, unnamed for global).
-#'
-#' @export
-assign_excluded_ages <- function(adjusted_ages,
-                                 excluded_horizons,
-                                 event_stats) {
-
-  excl_parsed         <- parse_excluded_horizons(excluded_horizons, names(event_stats$processed))
-  per_record_excluded <- excl_parsed$per_record_excluded
-  global_excluded     <- excl_parsed$global_excluded
-
-  all_records <- names(event_stats$processed)
-
-  # Final list of exclusions per record
-  exclusions_by_record <- lapply(all_records, function(rec) {
-    unique(c(global_excluded, per_record_excluded[[rec]]))
-  })
-  names(exclusions_by_record) <- all_records
-
-  # Build export structure
-  out <- list()
-
-  # For every record
-  for (rec in all_records) {
-
-    rec_exclusions <- exclusions_by_record[[rec]]
-    if (length(rec_exclusions) == 0) next  # No exclusions for this record
-
-    present_horizons <- names(event_stats$processed[[rec]])
-
-    # Process each excluded horizon
-    for (ex_h in rec_exclusions) {
-
-      if (!(ex_h %in% present_horizons)) next  # Excluded horizon not present in record
-
-      # Find all OTHER horizons in the record that have adjusted ages
-      other_hz <- setdiff(present_horizons, ex_h)
-      other_hz <- other_hz[other_hz %in% names(adjusted_ages)]
-
-      if (length(other_hz) == 0) {
-        warning(sprintf(
-          "Record '%s': excluded horizon '%s' has no other horizons with adjusted ages.",
-          rec, ex_h
-        ))
-        next
-      }
-
-      # Take first reference horizon (alphabetically)
-      ref <- other_hz[1]
-      ref_df <- adjusted_ages[[ref]]
-      ref_row <- ref_df[ref_df$record == rec, ]
-
-      if (nrow(ref_row) == 0) next
-
-      # Initialize output list for this horizon if needed
-      if (is.null(out[[ex_h]])) {
-        out[[ex_h]] <- data.frame(
-          record = character(),
-          adjusted_age = numeric(),
-          adjusted_error = numeric(),
-          stringsAsFactors = FALSE
-        )
-      }
-
-      # Add row
-      out[[ex_h]] <- rbind(out[[ex_h]], data.frame(
-        record = rec,
-        adjusted_age = ref_row$adjusted_age,
-        adjusted_error = ref_row$adjusted_error,
-        stringsAsFactors = FALSE
-      ))
-
-      cat(sprintf(
-        "Assigned %.1f +/- %.1f to excluded '%s' in record '%s' using '%s'\n",
-        ref_row$adjusted_age, ref_row$adjusted_error, ex_h, rec, ref
-      ))
-    }
-  }
-
-  return(out)
 }
 
 #' Bayesian Combination of PDFs Using Monte Carlo Samples

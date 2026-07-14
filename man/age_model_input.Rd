@@ -2,30 +2,59 @@
 % Please edit documentation in R/bacon-input.R
 \name{age_model_input}
 \alias{age_model_input}
-\title{Save Records as CSV Files for Bacon}
+\title{Write Bacon Input Files and Return the Updated Record Metadata}
 \usage{
-age_model_input(bacon_input, record_name, base_dir, adjusted_ages = NULL)
+age_model_input(
+  record_data,
+  adjusted_ages = NULL,
+  update_records = FALSE,
+  radiocarbon_sample_names = "sample",
+  lead_sample_names = "",
+  original_ages = TRUE,
+  base_dir = "."
+)
 }
 \arguments{
-\item{bacon_input}{Named list with elements \code{c14} and \code{pb210} as returned by
+\item{record_data}{Named list of record metadata (output from \code{load_excel_data()},
+or the return value of a previous \code{age_model_input()} call). Each element is a data
+frame with at least \code{event}, \code{depth}, \code{C14_age}, \code{C14_error} and
+\code{cc} columns.}
+
+\item{adjusted_ages}{Optional output from \code{set_to_zero()} (or a \code{c()} combination
+of several) with the new synchronized ages to add (default: \code{NULL}). When
+\code{NULL}, the current \code{record_data} is written as-is (the initial Bacon input).}
+
+\item{update_records}{Logical; when \code{TRUE} the existing folders that \code{record_data}
+is keyed to are overwritten in place. When \code{FALSE} (default) and \code{adjusted_ages}
+is supplied, a new folder generation is created (\code{"_synced"} for the first
+synchronization, then \code{"_synced_1"}, \code{"_synced_2"}, ...).}
+
+\item{radiocarbon_sample_names}{Character vector of the event label(s) used for your
+radiocarbon samples in the input file (default: \code{"sample"}).}
+
+\item{lead_sample_names}{Character vector of the event label(s) used for your Pb-210 (lead)
+samples (default: \code{""}); leave blank if you only consider radiocarbon ages.}
+
+\item{original_ages}{Logical or named logical vector indicating whether the new age-depth
+models should also use the original (radiocarbon) ages alongside the synchronized ages
+(default: \code{TRUE}). Set to \code{FALSE} to build the models from the synchronized ages
+only (e.g. a record with poor accuracy); adjust it per record with a named vector such as
+\code{c("core1" = FALSE)} -- records not listed fall back to \code{TRUE}. Passed through to
 \code{build_bacon_input()}.}
 
-\item{record_name}{Character string used to name the output file and folder.}
-
-\item{base_dir}{Character string specifying the output directory where Bacon input files will be saved.}
-
-\item{adjusted_ages}{Optional list output from \code{set_to_zero()} containing synchronized ages
-per horizon (default: NULL). When provided, output is written to a \code{"_synced"} subfolder.}
+\item{base_dir}{Character string specifying the output directory (default: \code{"."}, the
+working directory, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}).}
 }
 \value{
-No return value. Writes one or two CSV files and prints the saved paths.
+Invisibly, a named list with the same structure as \code{record_data}: the record
+frames with the new synchronized ages baked in, keyed by the folder generation that was
+written (unchanged keys when \code{update_records = TRUE}). Assign it and pass it to the
+next \code{age_model_input()} call.
 }
 \description{
-Saves Bacon-formatted radiocarbon (and optionally Pb210) input data from a
-\code{build_bacon_input()} result to CSV file(s) in the appropriate output folder.
-}
-\details{
-If Pb210 data is present in \code{bacon_input}, two CSV files are saved: one for
-C14 data (with \code{_C14} suffix) and one for Pb210 data (plain name). If only C14 data
-is present, a single CSV file is saved under the plain record name.
+Single entry point for turning record metadata into Bacon-ready CSV input files. It
+treats \code{record_data} as the source of truth: any new synchronized ages are baked
+into it, the Bacon CSV(s) are rebuilt from the radiocarbon samples plus \emph{all}
+synchronized ages now present, and the updated \code{record_data} (re-keyed to the folder
+generation that was written) is returned -- ready to pass straight into the next call.
 }
