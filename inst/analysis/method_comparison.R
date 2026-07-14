@@ -50,8 +50,7 @@ max_depths  <- input$max_depths
 # This comparison expects the *generic* benchmark produced by generate_dataset.R:
 # every deposit is labelled either "synchronous" or "non-synchronous" (plus the
 # "isochron<n>" tie points and radiocarbon "sample"s). It must NOT contain any
-# "synchro-test" / "synchro-test-wrong" horizons -- those belong to the separate
-# datum-sensitivity experiment, not to this cross-method confusion-matrix run.
+# "synchro-test" / "synchro-test-wrong" horizons.
 # If your record_data still has synchro-test rows, relabel them back to the
 # generic "synchronous" / "non-synchronous" classes before running this script.
 #
