@@ -19,23 +19,14 @@ one per record.}
 \item{conf_level}{Numeric value specifying the confidence level for the test (e.g., 0.95).}
 
 \item{age_diff_log_bounds}{Two-element numeric vector with log-space age difference bounds.}
-
-\item{n_samples}{Integer number of Monte Carlo draws per record (default: 10000).}
-
-\item{seed}{Integer random seed for reproducibility (default: 5128).}
 }
 \value{
 Named list containing:
 \itemize{
-\item \code{overall_score}: Numeric value representing the proportion of joint Monte
-Carlo draws (rows of the (k-1)-dimensional ALR distribution) for which
-\emph{every} non-reference record is simultaneously within bounds of the shared
-reference draw for that row -- the joint probability that all considered
-records are synchronous, not merely their marginal average.
-\item \code{overall_precision}: Numeric value representing the smallest age-difference
-tolerance (as a proportion) for which \code{overall_score}'s joint
-(all-records-simultaneously) requirement would reach \code{conf_level}, or NA
-if the distribution is unsuitable
+\item \code{overall_score}: Numeric value representing the proportion of ALR samples
+within age difference bounds
+\item \code{overall_precision}: Numeric value representing the synchronicity precision
+(as proportion) or NA if distribution is unsuitable
 \item \code{n_records}: Integer count of records included in the analysis
 \item \code{ref_record}: Character string identifying the reference record used as
 denominator in ALR
@@ -46,10 +37,8 @@ Calculates overall synchronicity scores across multiple records using additive
 log-ratio (ALR) transformation.
 }
 \details{
-Uses the first record alphabetically as reference. The reference record's Monte
-Carlo resample is drawn once and shared across every non-reference column, since all
-comparisons are against the same single (uncertain) reference record; each non-reference
-record is independently resampled, reflecting that their age models are unrelated. This
-shared reference draw is what makes \code{overall_score}'s row-wise joint requirement
-meaningful, rather than an arbitrary pairing of unrelated values.
+Uses the first record alphabetically as reference. Calculates ALR for all other
+records, tests for multivariate normality using Mahalanobis distances, and computes
+overall synchronicity metrics. Issues warnings if multivariate normality assumptions
+are violated.
 }

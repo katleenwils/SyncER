@@ -33,10 +33,8 @@ one element per record folder.}
 
 \item{excluded_depths}{Optional named list of excluded depth intervals per record.}
 
-\item{thick}{The Bacon section thickness; single numeric, named list per record, or NULL
-(default), in which case it is derived per record from the model as
-\code{max_depths[record] / (n_cols - 3)}, i.e. the modelled depth range divided
-by the number of Bacon sections.}
+\item{thick}{The Bacon thickness parameter; single numeric, named list per record, or NULL
+(extract from folder name).}
 
 \item{synced}{Character string suffix to identify synchronized folders (default: "").}
 }

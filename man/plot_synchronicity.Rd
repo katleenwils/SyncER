@@ -6,7 +6,7 @@
 \usage{
 plot_synchronicity(
   synchro_result,
-  output_dir = syncer_output_dir(),
+  output_dir,
   offset = bp_datum(),
   synced = "",
   fig_width = 10,
@@ -17,9 +17,8 @@ plot_synchronicity(
 \arguments{
 \item{synchro_result}{The list returned by \code{compute_synchronicity()}.}
 
-\item{output_dir}{Character string specifying the directory the PDF files will be
-saved to (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs}
-folder in the working directory).}
+\item{output_dir}{Character string specifying the directory in which the
+\code{synchro_test} sub-folder will be created (or already exists).}
 
 \item{offset}{Numeric offset correction value applied to ages before plotting
 (default: \code{bp_datum()}, i.e. the current year minus 1950).}
@@ -30,17 +29,7 @@ folder in the working directory).}
 
 \item{fig_height}{Numeric height of output PDF figures in inches (default: 8).}
 
-\item{plot_opts}{Named list of plot layout options:
-\itemize{
-\item \code{n_bins}: histogram resolution (default: \code{500})
-\item \code{base_size}: ggplot base font size in pt (default: \code{10})
-\item \code{label_size}: record label text size (default: \code{3})
-\item \code{annotation_size}: statistical annotation text size (default: \code{3})
-\item \code{minor_break_by}: x-axis minor tick spacing in cal yrs (default: \code{100})
-\item \code{x_n_breaks}: approximate number of major x-axis breaks (default: \code{10})
-\item \code{age_axis_label}: age distribution panel's x-axis label
-(default: \code{"Age (cal yrs BP)"})
-}}
+\item{plot_opts}{List of additional plot options passed to \code{create_visualization()}.}
 }
 \value{
 Invisibly returns \code{NULL}.

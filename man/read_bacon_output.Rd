@@ -5,7 +5,7 @@
 \title{Read Raw Bacon Output Files}
 \usage{
 read_bacon_output(
-  folder_path = ".",
+  folder_path,
   synced = "",
   max_depths = NULL,
   excluded_depths = NULL
@@ -13,9 +13,7 @@ read_bacon_output(
 }
 \arguments{
 \item{folder_path}{Character string giving the parent directory that contains
-the per-record Bacon output sub-folders (default: \code{"."}, i.e. the working
-directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
-and \code{age_model_input()}).}
+the per-record Bacon output sub-folders.}
 
 \item{synced}{Character string suffix used to identify synchronized output folders
 (default: \code{""}; non-empty values such as \code{"_synced"} select only folders

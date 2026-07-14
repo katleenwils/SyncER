@@ -4,11 +4,10 @@
 \alias{read_from_excel}
 \title{Read List of Data Frames from an Excel File}
 \usage{
-read_from_excel(folder_path = syncer_output_dir(), synced = "")
+read_from_excel(folder_path, synced = "")
 }
 \arguments{
-\item{folder_path}{Character string specifying the location of the Excel file to be read
-(default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).}
+\item{folder_path}{Character string specifying the location of the Excel file to be read.}
 
 \item{synced}{Character string suffix for the input filename (default: "");
 use "_synced" for synchronized data.}

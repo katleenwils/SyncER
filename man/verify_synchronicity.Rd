@@ -7,8 +7,7 @@
 verify_synchronicity(
   synchro_result,
   event_names,
-  output_dir = syncer_output_dir(),
-  group_name = NULL,
+  output_dir,
   synced = "",
   isochron = FALSE,
   offset = bp_datum(),
@@ -20,23 +19,15 @@ verify_synchronicity(
 \arguments{
 \item{synchro_result}{The list returned by \code{compute_synchronicity()}.}
 
-\item{event_names}{Character vector of event names being tested. Falls back to
-naming the CSV file when \code{group_name} is not supplied.}
+\item{event_names}{Character vector of event names (used to build the CSV filename).}
 
-\item{output_dir}{Character string specifying the directory the statistics CSV will be
-saved to (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs}
-folder in the working directory).}
-
-\item{group_name}{Character string used to name the CSV file (as
-\code{"<group_name>_stats.csv"}), representing the horizon group being tested
-as a whole rather than every individual horizon name in \code{event_names}. When
-\code{NULL} (default), defaults to \code{"isochron"} if \code{isochron = TRUE}, or
-to all of \code{event_names} pasted together otherwise.}
+\item{output_dir}{Character string specifying path where results folder "synchro_test"
+will be created.}
 
 \item{synced}{Character string appended to output filenames (default: \code{""}).}
 
 \item{isochron}{Logical; when \code{TRUE} a warning is shown if >10\\% of comparisons
-fail, and the CSV file is named \code{"isochron"} by default (default: \code{FALSE}).}
+fail (default: \code{FALSE}).}
 
 \item{offset}{Numeric offset correction value passed to \code{plot_synchronicity()}
 (default: \code{bp_datum()}, i.e. the current year minus 1950).}
@@ -45,17 +36,7 @@ fail, and the CSV file is named \code{"isochron"} by default (default: \code{FAL
 
 \item{fig_height}{Numeric height of output PDF figures in inches (default: 8).}
 
-\item{plot_opts}{Named list of plot layout options:
-\itemize{
-\item \code{n_bins}: histogram resolution (default: \code{500})
-\item \code{base_size}: ggplot base font size in pt (default: \code{10})
-\item \code{label_size}: record label text size (default: \code{3})
-\item \code{annotation_size}: statistical annotation text size (default: \code{3})
-\item \code{minor_break_by}: x-axis minor tick spacing in cal yrs (default: \code{100})
-\item \code{x_n_breaks}: approximate number of major x-axis breaks (default: \code{10})
-\item \code{age_axis_label}: age distribution panel's x-axis label
-(default: \code{"Age (cal yrs BP)"})
-}}
+\item{plot_opts}{List of additional plot options passed to \code{create_visualization()}.}
 }
 \value{
 Invisibly returns \code{synchro_result} unchanged.

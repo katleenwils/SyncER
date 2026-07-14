@@ -26,7 +26,7 @@ resolve_horizon_thresholds <- function(horizon, confidence_level, age_difference
   if (!is.null(names(confidence_level)) && horizon %in% names(confidence_level)) {
     conf_level_h <- confidence_level[[horizon]]
   } else {
-    conf_level_h <- confidence_level[[1]]
+    conf_level_h <- confidence_level[1]
   }
 
   if (!is.null(names(age_difference)) && horizon %in% names(age_difference)) {
@@ -36,7 +36,7 @@ resolve_horizon_thresholds <- function(horizon, confidence_level, age_difference
     age_diff_h <- if (length(unnamed_idx) > 0) {
       age_difference[[unnamed_idx[length(unnamed_idx)]]]
     } else {
-      age_difference[[1]]
+      age_difference[1]
     }
   }
 

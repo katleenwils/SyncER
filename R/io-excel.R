@@ -3,16 +3,8 @@
 #' Loads radiocarbon dating records from an Excel file and calculates maximum depths
 #' and sedimentation rates for each record.
 #'
-#' @param folder_path Character string specifying the path to the folder containing your input file
-#'   (default: \code{"."}, i.e. the working directory set by \code{syncer_setup()}).
-#' @param file_name Character string specifying the name of your input Excel file (default:
-#'   \code{"record_data_input.xlsx"}). This workbook holds one \strong{sheet per record}, and
-#'   each sheet gives, for every dated sample and for the record top, the \code{depth},
-#'   \code{C14_age} and \code{C14_error}, together with the radiocarbon calibration curve code in
-#'   the \code{cc} column (\code{0} = no calibration / calendar ages, \code{1} = IntCal20,
-#'   \code{2} = Marine20, \code{3} = SHCal20). The sheet must also list the depths of the
-#'   considered event deposits; these depths may be given either as event-free depth or as total
-#'   depth.
+#' @param folder_path Character string specifying the path to the folder containing your input file.
+#' @param file_name Character string specifying the name of your input Excel file (default: "record_data_input.xlsx").
 #'
 #' @return A named list with three elements:
 #'   \itemize{
@@ -27,7 +19,7 @@
 #'   warnings are issued and NA values are returned.
 #'
 #' @export
-load_excel_data <- function(folder_path = ".",
+load_excel_data <- function(folder_path,
                             file_name="record_data_input.xlsx") {
 
   # Construct full path to Excel file
@@ -88,8 +80,7 @@ load_excel_data <- function(folder_path = ".",
 #' Exports a named list of data frames to a single Excel file with multiple worksheets.
 #'
 #' @param out_data Named list of data frames where each element will become a separate worksheet.
-#' @param folder_path Character string specifying the location where the Excel file should be saved
-#'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).
+#' @param folder_path Character string specifying the location where the Excel file should be saved.
 #' @param synced Character string suffix for the output filename (default: "");
 #'   use "_synced" for synchronized data.
 #'
@@ -101,7 +92,7 @@ load_excel_data <- function(folder_path = ".",
 #' @importFrom writexl write_xlsx
 #' @export
 export_to_excel <- function(out_data,
-                            folder_path = syncer_output_dir(),
+                            folder_path,
                             synced="") {
 
   # Convert all list elements to data frames
@@ -120,8 +111,7 @@ export_to_excel <- function(out_data,
 #' Reads an Excel file containing multiple worksheets and returns a named list of data frames.
 #' This is the inverse operation of \code{export_to_excel()}.
 #'
-#' @param folder_path Character string specifying the location of the Excel file to be read
-#'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).
+#' @param folder_path Character string specifying the location of the Excel file to be read.
 #' @param synced Character string suffix for the input filename (default: "");
 #'   use "_synced" for synchronized data.
 #'
@@ -147,7 +137,7 @@ export_to_excel <- function(out_data,
 #'
 #' @importFrom readxl read_excel excel_sheets
 #' @export
-read_from_excel <- function(folder_path = syncer_output_dir(),
+read_from_excel <- function(folder_path,
                             synced = "") {
 
   # Construct input filename

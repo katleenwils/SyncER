@@ -22,17 +22,12 @@
 #'   (for generic horizon groups) (default: NULL).
 #' @param variant2 Optional character string specifying exact horizon name in record 2
 #'   (for generic horizon groups) (default: NULL).
-#' @param plot_opts Named list of plot layout options:
-#'   \itemize{
-#'     \item \code{n_bins}: histogram resolution (default: \code{500})
-#'     \item \code{base_size}: ggplot base font size in pt (default: \code{10})
-#'     \item \code{label_size}: record label text size (default: \code{3})
-#'     \item \code{annotation_size}: statistical annotation text size (default: \code{3})
-#'     \item \code{minor_break_by}: x-axis minor tick spacing in cal yrs (default: \code{100})
-#'     \item \code{x_n_breaks}: approximate number of major x-axis breaks (default: \code{10})
-#'     \item \code{age_axis_label}: age distribution panel's x-axis label
-#'           (default: \code{"Age (cal yrs BP)"})
-#'   }
+#' @param plot_opts Named list of plot layout options. Supported keys: \code{n_bins}
+#'   (histogram resolution, default 500), \code{base_size} (ggplot base font size in pt,
+#'   default 10), \code{label_size} (record label text size, default 3),
+#'   \code{annotation_size} (statistical annotation text size, default 3),
+#'   \code{minor_break_by} (x-axis minor tick spacing in cal yrs, default 100),
+#'   \code{x_n_breaks} (approximate number of major x-axis breaks, default 10).
 #'
 #' @return No return value. Creates a composite plot with two panels displayed in the current
 #'   graphics device.
@@ -61,13 +56,12 @@ create_visualization <- function(Amin,
 
   opts <- modifyList(
     list(
-      n_bins          = 500,                # histogram resolution
-      base_size       = 10,                 # ggplot base font size (pt)
-      label_size      = 3,                  # record label text size
-      annotation_size = 3,                  # statistical annotation text size
-      minor_break_by  = 100,                # x-axis minor tick spacing (cal yrs)
-      x_n_breaks      = 10,                 # approximate number of major x-axis breaks
-      age_axis_label  = "Age (cal yrs BP)"  # age distribution panel's x-axis label
+      n_bins          = 500,  # histogram resolution
+      base_size       = 10,   # ggplot base font size (pt)
+      label_size      = 3,    # record label text size
+      annotation_size = 3,    # statistical annotation text size
+      minor_break_by  = 100,  # x-axis minor tick spacing (cal yrs)
+      x_n_breaks      = 10    # approximate number of major x-axis breaks
     ),
     plot_opts
   )
@@ -138,7 +132,7 @@ create_visualization <- function(Amin,
     ggplot2::annotate("text", x = Inf, y = 1.35,
              label = paste0("Age PDF: ", sheet2_name, format_variant(variant2, column_name)),
              hjust = -0.1, vjust = 0, size = 3) +
-    ggplot2::xlab(opts$age_axis_label) +
+    ggplot2::xlab("Age (cal yrs BP)") +
     ggplot2::ylim(0, 3) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
@@ -237,21 +231,20 @@ create_visualization <- function(Amin,
 #' \code{compute_synchronicity()} result.
 #'
 #' @param synchro_result The list returned by \code{compute_synchronicity()}.
-#' @param output_dir Character string specifying the directory the PDF files will be
-#'   saved to (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs}
-#'   folder in the working directory).
+#' @param output_dir Character string specifying the directory in which the
+#'   \code{synchro_test} sub-folder will be created (or already exists).
 #' @param offset Numeric offset correction value applied to ages before plotting
 #'   (default: \code{bp_datum()}, i.e. the current year minus 1950).
 #' @param synced Character string appended to PDF file names (default: "").
 #' @param fig_width Numeric width of output PDF figures in inches (default: 10).
 #' @param fig_height Numeric height of output PDF figures in inches (default: 8).
-#' @inheritParams create_visualization
+#' @param plot_opts List of additional plot options passed to \code{create_visualization()}.
 #'
 #' @return Invisibly returns \code{NULL}.
 #'
 #' @export
 plot_synchronicity <- function(synchro_result,
-                               output_dir = syncer_output_dir(),
+                               output_dir,
                                offset     = bp_datum(),
                                synced     = "",
                                fig_width  = 10,
@@ -262,7 +255,7 @@ plot_synchronicity <- function(synchro_result,
   if (is.null(viz_data) || nrow(viz_data) == 0) return(invisible(NULL))
 
   cat("Printing comparison PDFs...\n")
-  out_dir <- output_dir
+  out_dir <- file.path(output_dir, "synchro_test")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
   horizons <- unique(viz_data$Event)
@@ -320,8 +313,8 @@ plot_synchronicity <- function(synchro_result,
 #'   \code{samples_list_shifted}, \code{combined_pdf_x}, \code{combined_pdf_vals},
 #'   \code{valid_records}, \code{mu_comb}, \code{sigma_comb}, \code{group_name},
 #'   and \code{bayes_opts}.
-#' @param output_dir Character string; directory the PDF is saved to. Pass
-#'   \code{NULL} to skip PDF output.
+#' @param output_dir Character string; directory in which the \code{synchro_test}
+#'   sub-folder is created for the PDF. Pass \code{NULL} to skip PDF output.
 #'
 #' @return Invisibly returns \code{NULL}.
 #'
@@ -368,8 +361,8 @@ plot_bayesian_combination <- function(pd, output_dir = NULL) {
   draw_plot()
 
   if (!is.null(output_dir)) {
-    dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-    pdf_path <- file.path(output_dir,
+    dir.create(file.path(output_dir, "synchro_test"), recursive = TRUE, showWarnings = FALSE)
+    pdf_path <- file.path(output_dir, "synchro_test",
                           paste0(group_name, "_Bayesian_combination.pdf"))
     pdf(pdf_path, width = bayes_opts$fig_width, height = bayes_opts$fig_height)
     draw_plot()

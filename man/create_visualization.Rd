@@ -58,17 +58,12 @@ in log-space (shown as blue shading).}
 \item{variant2}{Optional character string specifying exact horizon name in record 2
 (for generic horizon groups) (default: NULL).}
 
-\item{plot_opts}{Named list of plot layout options:
-\itemize{
-\item \code{n_bins}: histogram resolution (default: \code{500})
-\item \code{base_size}: ggplot base font size in pt (default: \code{10})
-\item \code{label_size}: record label text size (default: \code{3})
-\item \code{annotation_size}: statistical annotation text size (default: \code{3})
-\item \code{minor_break_by}: x-axis minor tick spacing in cal yrs (default: \code{100})
-\item \code{x_n_breaks}: approximate number of major x-axis breaks (default: \code{10})
-\item \code{age_axis_label}: age distribution panel's x-axis label
-(default: \code{"Age (cal yrs BP)"})
-}}
+\item{plot_opts}{Named list of plot layout options. Supported keys: \code{n_bins}
+(histogram resolution, default 500), \code{base_size} (ggplot base font size in pt,
+default 10), \code{label_size} (record label text size, default 3),
+\code{annotation_size} (statistical annotation text size, default 3),
+\code{minor_break_by} (x-axis minor tick spacing in cal yrs, default 100),
+\code{x_n_breaks} (approximate number of major x-axis breaks, default 10).}
 }
 \value{
 No return value. Creates a composite plot with two panels displayed in the current

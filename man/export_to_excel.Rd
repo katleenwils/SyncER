@@ -4,13 +4,12 @@
 \alias{export_to_excel}
 \title{Export List of Data Frames to an Excel File}
 \usage{
-export_to_excel(out_data, folder_path = syncer_output_dir(), synced = "")
+export_to_excel(out_data, folder_path, synced = "")
 }
 \arguments{
 \item{out_data}{Named list of data frames where each element will become a separate worksheet.}
 
-\item{folder_path}{Character string specifying the location where the Excel file should be saved
-(default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).}
+\item{folder_path}{Character string specifying the location where the Excel file should be saved.}
 
 \item{synced}{Character string suffix for the output filename (default: "");
 use "_synced" for synchronized data.}

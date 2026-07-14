@@ -72,31 +72,22 @@ find_precision_threshold <- function(ABlr, conf_level) {
 #'   one per record.
 #' @param conf_level Numeric value specifying the confidence level for the test (e.g., 0.95).
 #' @param age_diff_log_bounds Two-element numeric vector with log-space age difference bounds.
-#' @param n_samples Integer number of Monte Carlo draws per record (default: 10000).
-#' @param seed Integer random seed for reproducibility (default: 5128).
 #'
 #' @return Named list containing:
 #'   \itemize{
-#'     \item \code{overall_score}: Numeric value representing the proportion of joint Monte
-#'           Carlo draws (rows of the (k-1)-dimensional ALR distribution) for which
-#'           \emph{every} non-reference record is simultaneously within bounds of the shared
-#'           reference draw for that row -- the joint probability that all considered
-#'           records are synchronous, not merely their marginal average.
-#'     \item \code{overall_precision}: Numeric value representing the smallest age-difference
-#'           tolerance (as a proportion) for which \code{overall_score}'s joint
-#'           (all-records-simultaneously) requirement would reach \code{conf_level}, or NA
-#'           if the distribution is unsuitable
+#'     \item \code{overall_score}: Numeric value representing the proportion of ALR samples
+#'           within age difference bounds
+#'     \item \code{overall_precision}: Numeric value representing the synchronicity precision
+#'           (as proportion) or NA if distribution is unsuitable
 #'     \item \code{n_records}: Integer count of records included in the analysis
 #'     \item \code{ref_record}: Character string identifying the reference record used as
 #'           denominator in ALR
 #'   }
 #'
-#' @details Uses the first record alphabetically as reference. The reference record's Monte
-#'   Carlo resample is drawn once and shared across every non-reference column, since all
-#'   comparisons are against the same single (uncertain) reference record; each non-reference
-#'   record is independently resampled, reflecting that their age models are unrelated. This
-#'   shared reference draw is what makes \code{overall_score}'s row-wise joint requirement
-#'   meaningful, rather than an arbitrary pairing of unrelated values.
+#' @details Uses the first record alphabetically as reference. Calculates ALR for all other
+#'   records, tests for multivariate normality using Mahalanobis distances, and computes
+#'   overall synchronicity metrics. Issues warnings if multivariate normality assumptions
+#'   are violated.
 #'
 #' @export
 calculate_overall_synchronicity <- function(samples_list,
@@ -121,25 +112,20 @@ calculate_overall_synchronicity <- function(samples_list,
   ref_record <- sort(valid_records)[1]
   ref_samples <- samples_list[[ref_record]]
 
-  # Calculate ALR (Additive Log-Ratio) for each non-reference record.
-  # The reference record's resample is drawn ONCE and reused across every
-  # non-reference column, since all comparisons share the same single
-  # (uncertain) reference age -- resampling it independently per column would
-  # treat each comparison as if it had its own separate reference record,
-  # erasing the correlation this (k-1)-dimensional distribution is meant to
-  # capture.
-  n_samples <- min(vapply(samples_list[valid_records], length, integer(1)), n_samples)
-  ref_samp  <- sample(ref_samples, n_samples, replace = TRUE)
-
+  # Calculate ALR (Additive Log-Ratio) for each non-reference record
   alr_matrix <- list()
 
   for (rec in valid_records) {
     if (rec == ref_record) next  # Skip reference itself
 
     rec_samples <- samples_list[[rec]]
+
+    # Sample with replacement to standardize sample size
+    n_samples <- min(length(ref_samples), length(rec_samples), n_samples)
+    ref_samp <- sample(ref_samples, n_samples, replace = TRUE)
     rec_samp <- sample(rec_samples, n_samples, replace = TRUE)
 
-    # Calculate log-ratio (shared reference draw as denominator)
+    # Calculate log-ratio (reference as denominator)
     alr_vec <- log(rec_samp / ref_samp)
     alr_matrix[[rec]] <- alr_vec
   }
@@ -153,29 +139,32 @@ calculate_overall_synchronicity <- function(samples_list,
   # Combine ALR vectors into matrix (each column = one comparison)
   alr_mat <- do.call(cbind, alr_matrix)
 
-  # Calculate overall synchronicity score: proportion of joint Monte Carlo draws
-  # (rows of the (k-1)-dimensional ALR distribution) for which every
-  # non-reference record is simultaneously within bounds of the shared
-  # reference draw for that row -- the joint probability that all considered
-  # records are synchronous, not merely the marginal average across records.
-  all_alr <- as.vector(alr_mat)
-  row_within_bounds <- rowSums(alr_mat >= age_diff_log_bounds[1] &
-                                  alr_mat <= age_diff_log_bounds[2]) == ncol(alr_mat)
-  overall_score <- mean(row_within_bounds, na.rm = TRUE)
+  # Test for multivariate normality using Mahalanobis distances
+  alr_mean <- colMeans(alr_mat)
+  alr_cov_mat <- cov(alr_mat)
 
-  # Calculate overall synchronicity precision: the smallest tolerance t such that
-  # at least conf_level proportion of joint draws have ALL k-1 columns
-  # simultaneously within [-t, t] -- the same joint (row-wise) requirement used
-  # for overall_score, rather than pooling all individual log-ratio values.
+  # Calculate Mahalanobis distance for each observation
+  mahal_dist <- mahalanobis(alr_mat, center = alr_mean, cov = alr_cov_mat)
+  df <- ncol(alr_mat)
+
+  # Test if distances follow chi-squared distribution (expected under MVN)
+  test_data <- if (length(mahal_dist) > 5000) sample(mahal_dist, 5000) else mahal_dist
+  ks_test <- suppressWarnings(ks.test(test_data, "pchisq", df = df))
+
+  # Calculate overall synchronicity score
+  # Score = proportion of samples within age difference bounds
+  all_alr <- as.vector(alr_mat)
+  overall_score <- mean(all_alr >= age_diff_log_bounds[1] &
+                          all_alr <= age_diff_log_bounds[2], na.rm = TRUE)
+
+  # Calculate overall synchronicity precision
   qa <- assess_lr(all_alr)
 
   # Calculate precision only if distribution is suitable
   if (qa$ok && any(all_alr <= 0, na.rm = TRUE) && any(all_alr >= 0, na.rm = TRUE)) {
-    # A row is jointly within +/-t iff every column's absolute value is <= t,
-    # i.e. iff the row's largest absolute log-ratio is <= t.
-    row_max_abs <- apply(alr_mat, 1, function(row) max(abs(row)))
-    abs_vals <- sort(row_max_abs[!is.na(row_max_abs)])
-    props <- vapply(abs_vals, function(t) mean(row_max_abs <= t, na.rm = TRUE), numeric(1))
+    # Find threshold where conf_level proportion of samples fall within ±t
+    abs_vals <- sort(abs(all_alr[!is.na(all_alr)]))
+    props <- vapply(abs_vals, function(t) mean(abs(all_alr) <= t, na.rm = TRUE), numeric(1))
     idx <- which(props >= conf_level)[1]
 
     if (!is.na(idx)) {
