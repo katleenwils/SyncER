@@ -1,0 +1,427 @@
+---
+title: "SyncER Workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{SyncER Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Step 0: Load and set-up *SyncER* package
+
+```{r SyncER-load}
+library(SyncER)
+```
+
+```{r setup}
+# --- Choose where this example should run ------------------------------------
+# SyncER ships the Example dataset inside the installed package. Below we copy it
+# into a writable folder of your choice and run the whole workflow there, so that
+# all age-depth modelling and SyncER output are created in your own location and
+# the installed package is never modified. Change `syncer_wd` to any path you like.
+syncer_wd <- file.path(path.expand("~"), "SyncER_example")
+dir.create(syncer_wd, recursive = TRUE, showWarnings = FALSE)
+
+# Copy the bundled input file (record_data_input.xlsx) and the Bacon .out files
+# (in the core* folders) from the installed package into syncer_wd.
+example_dir <- system.file("extdata", package = "SyncER")
+invisible(file.copy(list.files(example_dir, full.names = TRUE), syncer_wd,
+                    recursive = TRUE, overwrite = TRUE))
+
+# Run every following chunk from that folder.
+knitr::opts_knit$set(root.dir = syncer_wd)
+```
+
+## Step 1: Set up the *SyncER* workflow
+
+The setup chunk above already copied the bundled Example dataset from the installed package (`system.file("extdata", package = "SyncER")`) into `syncer_wd`, the writable working directory you chose. Call `syncer_setup()` to point *SyncER* at that folder for the rest of this document and to create the `SyncER_outputs` folder there. Note that `SyncER_outputs` only holds *SyncER*'s own results (plots, statistics, the exported `out_data_ages.xlsx`) -- the *rbacon*/*rplum* input and output folders (named after your records, e.g. `core1`) live in the working directory itself, following the folder structure that *rbacon*/*rplum* expect. When applying this to your own data, simply place your own `record_data_input.xlsx` in `syncer_wd` instead (and skip the copy step in the setup chunk). This is an excel file with all information for each of the records you would like to be considered. Each sheet represents a single record, for which information on the depth, age & error for each dated sample and the record top is given. Also include the radiocarbon calibration curve that is required *(0=no calibration, calendar ages; 1=IntCal20; 2=Marine20; 3=SHCal20)*. Additionally, the depths of the considered event deposits needs to be included. You are free to give the input depths as event-free depth or total depth.
+
+```{r data-structure}
+output_dir <- syncer_setup(wd = syncer_wd)
+file_name  <- "record_data_input.xlsx"
+```
+
+List every type of event deposit that is included in your records in the single `horizon_groups` variable below (in the example*: isochron, synchronous, synchro-test and non-synchronous*). Each entry is named after the deposit's label in your input file and tagged with a `role`:
+
+- `"isochron"` - a synchronous reference horizon used to synchronize your age models (steps 3-5). Your *isochrons* should have unique names so that *SyncER* knows which ones to match between records. You can choose either generic names (e.g., *isochron1, isochron2* as in the example) or the actual name of the deposit (e.g., a tephra name).
+- `"test"` - a horizon whose potential synchronicity you want to evaluate (steps 6-7). You have the option to compare one deposit from each record, in which case you can use a single unique name. If you want to compare potential synchronicity of one layer in a record to multiple layers in another record, give it a generic name (e.g. *synchro-test*) and list the actual per-record labels (e.g. *synchro-test, synchro-test-wrong*) under `members`; you can define as many independent `"test"` entries as you need (e.g. add a second one to test another, unrelated set of horizons in the same run).
+- `"other"` - present in your records but not itself tested (e.g. the `synchronous`/`non-synchronous` markers in the example).
+
+`members` only needs to be set when several differently-named labels in your records should be compared together as one group; it defaults to the entry's own name. It is important to consider all possible horizon correlations for which you want to test for synchronicity and give them appropriate (unique) names, as the names defined here will be used throughout the *SyncER* workflow and cannot be adjusted without running the whole workflow again.
+
+Populate the `event_depths` and `hiatuses` variables in case you want to consider instantaneous deposits and/or hiatuses, respectively, in some of your records. Finally, provide the software with the label used for your radiocarbon ages and Pb-based ages (if included).
+
+```{r define-events}
+horizon_groups <- list(
+  "isochron1"       = list(role = "isochron"),
+  "isochron2"       = list(role = "isochron"),
+  "isochron3"       = list(role = "isochron"),
+  "isochron4"       = list(role = "isochron"),
+  "isochron5"       = list(role = "isochron"),
+  "isochron6"       = list(role = "isochron"),
+  "isochron7"       = list(role = "isochron"),
+  "isochron8"       = list(role = "isochron"),
+  "isochron9"       = list(role = "isochron"),
+  "synchronous"     = list(role = "other"),
+  "non-synchronous" = list(role = "other"),
+  "synchro-test"    = list(role = "test", members = c("synchro-test", "synchro-test-wrong"))
+  # Add one entry per event type in your records here. To test a second, independent set of
+  # horizons in the same run, just add another "test" entry, e.g.:
+  # "synchro-test2" = list(role = "test", members = c("synchro-test2", "synchro-test2-wrong"))
+)
+
+event_depths <- list("core1"=c(), "core2"=c(), "core3"=c(), "core4"=c(), "core5"=c()) # List with all event depths that should be considered as instantaneous deposits should you not have worked with event-free depths in the input file
+hiatuses <- list("core1"=c(), "core2"=c(), "core3"=c(), "core4"=c(), "core5"=c()) # List with all depths that should be considered as hiatuses per record
+
+radiocarbon_sample_names <- c("sample") # indicate how your radiocarbon samples are labeled
+lead_sample_names <- c("") #indicate how your Pb ages are labelled, leave blank if you only consider radiocarbon ages
+
+list2env(expand_horizon_groups(horizon_groups), environment()) # derives event_types, isochrons, test_events, isochron_groups, and test_horizon_groups
+```
+
+## Step 2: Age-depth modelling
+
+If you want to make use of the built-in compatibility with *rbacon or rplum*[^1], it is recommended to first run the age-depth models separately (in a different folder) to experiment with which parameters to use for each record. Subsequently, you can construct an age-depth model for each of your records in the SyncER framework. To do so, set up the correct folder structure to allow *SyncER* to run without issues using the bacon-setup chunk below. This creates a separate folder for each record, and places a `*.csv` file in each folder containing all age info for that record.
+
+[^1]: If you do not want to make use of the built-in compatibility with *rbacon or rplum*, skip the remainder step 2 and set up (in a different folder) the input data as desired by your age-depth modelling software (e.g., OxCal, Chronomodel - do not forget to add the relevant citations to your work). Create the necessary age-depth models, and compile an `out_data_ages.xlsx` file that is saved in the `SyncER_outputs` folder inside your working directory (`syncer_wd`). The `out_data_ages.xlsx` file should be structured as followed:
+
+    | eventhorizon1         | eventhorizon2         |
+    |-----------------------|-----------------------|
+    | age1_eventhorizon1    | age1_eventhorizon2    |
+    | age2_eventhorizon1    | age2_eventhorizon2    |
+    | age3_eventhorizon1    | age3_eventhorizon2    |
+    | ...                   | ...                   |
+    | age1000_eventhorizon1 | age1000_eventhorizon2 |
+
+    : *Structure of the `out_data_ages.xlsx` file*
+
+    Each column should contain the age information for a single event horizon. Each row should have one possible age, and ideally at least a thousand ages resulting from different age simulations are available (i.e. the basis for a PDF of an event age). The name of each event horizon column should be unique, and corresponding to the names in `record_data_input.xlsx`. If generic names were used (e.g., *synchronous*)*,* you could add the depth of that event in your record to avoid confusion (e.g., *synchronous_35*).
+
+    Finally, make sure to load the file into R using the following code:
+
+    synced_suffix \<- ""\
+    event_ages \<- read_from_excel(synced=synced_suffix)
+
+```{r bacon-setup}
+input_record_data <- load_excel_data(file_name = file_name)
+record_data <- input_record_data$record_data
+max_depths <- input_record_data$max_depths # This extends your age-depth models to the depth of the top of the deepest event mentioned in the input file. If you want to have them extend deeper, set them separately per record as such: max_depths <- c("record1"=100, "record2"=200)
+sedrates <- input_record_data$sedrates  
+
+age_model_input(record_data,
+                radiocarbon_sample_names = radiocarbon_sample_names,
+                lead_sample_names = lead_sample_names)
+```
+
+The code below includes some standard settings and automatically determines the ages of all depths until the deepest depth given in the `record_data_input.xlsx` file (be it a sample or an event deposit). If you need specific settings for a certain record (e.g., instantaneous deposits in case your input file contains total depth and not event-free depth), adjust the first part of this coding block to match the *rbacon* or *rplum* command you need (details on the possible input variations can be found in their respective manuals) and make sure to uncomment this part. Otherwise, all records will be ran with the same standard settings.
+
+Actually calling `Bacon()`/`Plum()` requires the *rbacon*/*rplum* packages to be installed and loaded (`library(rbacon)` or `library(rplum)`) -- *SyncER* does not load them for you. The bundled `Example` dataset already comes with completed Bacon runs in the `core1`-`core5` folders, so there is no need to install *rbacon*/*rplum* or (re)run the models just to follow this vignette: `run_bacon` below defaults to `FALSE`, and every `Bacon()`/`Plum()` call in the remainder of this document is wrapped in `if (run_bacon) { ... }`, so it is skipped and the existing model output is left untouched. `extract_ages()` afterwards reads directly from those `*.out` files. Set `run_bacon <- TRUE` (and load *rbacon*/*rplum*) if you want to reconstruct the age-depth models yourself, e.g. for your own dataset.
+
+```{r bacon-toggle}
+run_bacon <- FALSE # set to TRUE to actually (re)run rbacon/rplum; requires library(rbacon) or library(rplum)
+```
+
+```{r age-depth modelling}
+if (run_bacon) {
+for (record in names(record_data)){
+
+  # Adjust this block if you need specific settings for a certain record, and copy it if you need different settings for multiple records. Don't forget to uncomment it to make sure your age-depth models are constructed correctly. Or change to Plum if you defined lead_sample_names.
+
+  # if (record=="record"){ ## Replace "record" by the name of the record for which you require specific settings
+  #   Bacon(core = record,
+  #       coredir = syncer_wd,
+  #       sep = ',',
+  #       rotate.axes = TRUE,
+  #       thick = 2,
+  #       hiatus = hiatuses[[record]],
+  #       slump = event_depths[[record]],
+  #       ssize = 10000,
+  #       d.max = max_depths[record],
+  #       acc.mean = round(sedrates[record]),
+  #       suggest = FALSE,
+  #       accept.suggestions = TRUE
+  #       )
+  # } else if {
+
+  Bacon(core = record,
+        coredir = syncer_wd,
+        sep = ',',
+        rotate.axes = TRUE,
+        thick = 2,
+        ssize = 1000,
+        slump = event_depths[[record]],
+        hiatus = hiatuses[[record]],
+        d.max = max_depths[record],
+        acc.mean = round(sedrates[record]),
+        suggest = FALSE,
+        accept.suggestions = TRUE,
+        run = FALSE ## set to FALSE in case you already have the age models constructed
+        )
+  # }
+}
+}
+```
+
+Extract the ages of the event deposits in each record and export them to the `out_data_ages.xlsx` file.
+
+```{r extract-ages}
+reload_existing <- FALSE ## FALSE processes the bundled .out files and creates out_data_ages.xlsx; set TRUE on later runs to reuse an existing out_data_ages.xlsx
+event_ages <- extract_ages(record_data = record_data, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, reload_existing = reload_existing, excluded_depths=event_depths, thick = 2 ## set to the thick value used in Bacon, single value or as list (for example: list("core1" = 2, "core3 = 1))
+                           )
+if (!reload_existing) {
+  export_to_excel(event_ages)}
+```
+
+Once you have established the age models and extracted all required ages, you do not need to re-run all the age-depth models when you simply want to check for additional synchronicity events. This can be achieved by using the `run = FALSE` argument when running the `{r age-depth modelling}` code block and setting the `reload_existing` variable to `TRUE` in the `{r extract-ages}` block.
+
+## Step 3: Evaluate synchronicity of isochrons
+
+Once the age-depth models have been constructed, you can evaluate whether they indeed allow for the isochrons to be synchronous. To test for potential synchronicity, log-transformations will be used, meaning that no negative or zero values can exist in the age dataset. This requires an `age_offset` value to be added so that the age reference point is, for example, the year in which the (most recent) records were retrieved, rather than 1950 AD as used in radiocarbon dating. In *SyncER*, `age_offset` is derived automatically via `bp_datum()` (current year minus 1950), but can be set manually if desired.
+
+You also need to predefine what you want to consider as synchronous deposits so that a synchronicity score can be calculated. This is an assumption-free test that calculates the percentage of possible ages for each deposit that fall within a predefined (small) timeframe, or in other words, the probability that both events can be assumed to be deposited in the same predefined timeframe. To do so, you need to provide the maximum `age_difference` between both records you consider reasonable to still assume synchronicity. For example, for an `age_difference` of 0.05, the synchronicity score represents the confidence level with which we can assume the maximum age difference between both records is 5%. For an `age_difference` of 1 or larger, these will be considered as absolute age differences to be considered (e.g. 10 yrs). Different values can be set for different horizons, and a default value for non-specified horizons should be given as last argument. You also need to set a `confidence_level` (ratio) with which you want to test for possible synchronicity. For example, when the `confidence_level` parameter is set to 0.95, only correlations for which synchronicity scores higher than 0.95 will pass the test.
+
+```{r set-age-offset}
+age_offset <- bp_datum() # value to ensure no negative values in the dataset
+confidence_level = 0.95
+age_difference = 0.07 
+```
+
+```{r test-synchronicity-isochrons}
+isochron_stats <- process_event_ages(event_ages, isochrons, offset=age_offset)
+isochron_synchro <- compute_synchronicity(isochron_stats, isochrons, horizon_groups = isochron_groups, confidence_level = confidence_level, age_difference = age_difference)
+isochron_results <- verify_synchronicity(isochron_synchro, isochrons, isochron=TRUE, offset=age_offset)
+```
+
+For each unique pair of records in which the considered horizons (here: isochrons) are present, the synchronicity score is calculated and saved in the `*_stats.csv` file (synchronicity_score column), where the \* is replaced by the name of the horizons you are testing. Additionally, an overall synchronicity score per tested horizon is also calculated. A test summary where the number of fails (the desired `confidence_level` cannot be reached for the given `age_difference`) and test passes (the desired `confidence_level` can be reached for the given `age_difference`) is printed in-line.
+
+In theory, also the age difference between both records that is needed to achieve a synchronicity score of `confidence_level` can be calculated (synchronicity precision). However, direct calculation of tthe synchronicity precision is no longer an assumption-free test and the outcome strongly depends on the distribution of the data. It is thus only calculated in case some quality criteria are met, in which case it is also given in the `*_stats.csv` file (synchronicity_precision column). An alternative way to approximate the time interval within which the desired `confidence_level` for synchronicity can be reached would be to calculate the synchronicity score for systematically larger `age_difference` values until the desired `confidence_level` is reached.
+
+## Step 4: Set age difference of isochrons to zero
+
+If your isochrons show a significant age difference and/or wide age ranges, you can set this age difference to zero by assigning a fixed age to the isochron. There are five different options to achieve this: `age`, `ageofrecord`, `Bayesian`, `mean` or `mean_fixederror`.
+
+- `age` uses a specific age and error for one or more specific isochron (recommended if independent calibrated age information is available), and requires the variables `age_value`, `age_error` and `age_cc` to be defined;
+
+- `ageofrecord`*,* allowing you to choose one of the available age estimates (recommended if there are clear indications that one age model is more accurate) by defining the variable `age_record`;
+
+- `Bayesian`, which uses the [Bayesian rules for combinations](https://c14.arch.ox.ac.uk/oxcal3/math_ca.htm#comb) of probabilities as detailed in Bayes 1763 and Doran and Hodgson 1975 (recommended if the actual age is unknown but the age-depth models are assumed to be accurate);
+
+- `mean`*,* using the mean and standard deviation of the available age estimates (recommended if the actual age is unknown, default);
+
+- `mean_fixederror`, using the mean of the available age estimates but considers an arbitrarily small error that should be defined using the `age_error` variable (recommended if the actual age is unknown and you want to be very strict for synchronicity testing);
+
+For each of these methods, you can exclude a certain record from the calculations (e.g., if it has inaccurate age information) by adding the `excluded_records` argument to the `set_to_zero()` function.
+
+You can choose a single method (e.g., `matching_method = "ageofdepth"`) or combine them when different isochrons require different methods as in the example below. The `horizons` variable should include all horizons that you want to synchronize. For those that are listed but no `matching_method` is defined, `mean`is used.
+
+If your isochrons are indeed already potentially synchronous within a relatively narrow time interval and thus passed the test because you, for example, already used their independent ages as input for your age models, you can simply fill in those ages here below using the `age` matching method and appropriate `age_value`, `age_error` and `age_cc` values. After running these code blocks, you can skip step 5 and proceed to step 6 to evaluate synchronicity for other deposits.
+
+```{r isochron-match}
+matching_method <- c("isochron1" = "mean_fixederror", "isochron2" = "age", "isochron3" = "Bayesian", "isochron4" = "ageofrecord", "isochron5" = "age") # choose from mean, ageofrecord or age
+horizons <- c("isochron1", "isochron2", "isochron3", "isochron4", "isochron5", "isochron6", "isochron7")
+age_record <- "core2" # choose the age record you want to use as reference when matching_method "ageofrecord" is used
+age_value <- c("isochron2" = 1100, "isochron5" = 4100) # give age that needs to be used in case matching_method "age" is used
+age_error <- c("isochron1" = 10, "isochron2" = 20, "isochron5" = 25) # give error on age that needs to be used in case matching_method "age" is used
+age_cc <- c("isochron2" = 0, "isochron5" = 0, "isochron1" = 0)
+excluded_records <- c() # This can exclude a record entirely (excluded_records = c("core3")) or for certain horizons (excluded_records = list("isochron3" = "core3")).
+```
+
+```{r synced-ages}
+adjusted_ages <- set_to_zero(isochron_stats, isochron_synchro, method = matching_method, horizons = horizons, age_record = age_record, age_value = age_value, age_error = age_error, offset = age_offset, excluded_records = excluded_records, horizon_groups = isochron_groups)
+```
+
+## Step 5: Create new precise age-depth models
+
+With the synchronized ages for your isochrons, you can create new age models. For this purpose, new `*.csv` files are created as input files for *rbacon*, placed in folders with the same name as the original record but with a *\_synced* suffix. As the ages of the isochron are considered to be precise, the *t.a* and *t.b* parameters in *rbacon* are adjusted to more closely approach a normal distribution rather than a t distribution with long tails for those ages. After running *rbacon* again with the code below[^2], the synchronized age-depth models can also be found in those folders. **Keep in mind that these new age-depth models have an improved [precision]{.underline}, but are not necessarily more accurate!** This means synchronicity will be evaluated relative to other synchronous deposits. An improvement in accuracy can only be guaranteed in case you have independent age control for your isochrons. Additionally, it is important to always keep checking if your age models still seem reasonable (no weird changes in sedimentation rate, age reversals etc).
+
+[^2]: If you decided not to use the built-in compatibility with *rbacon*, skip the remainder of step 5 and repeat the procedure detailed in step 2 (using the data in the *\_synced* folders) to create the age-depth models with your desired software. To import the age info into *SyncER*, set the `synced_suffix` variable to *"\_synced"*.
+
+```{r create-synced-csvs}
+record_data_synced <- age_model_input(record_data, adjusted_ages,
+                                       radiocarbon_sample_names = radiocarbon_sample_names, lead_sample_names = lead_sample_names, original_ages = TRUE) #Set original_ages = FALSE if you don't want the age-depth models to also use the original (radiocarbon) ages; you can adjust this per record (e.g. if one record has bad accuracy) by passing c("core1" = FALSE). Records not listed fall back to TRUE.
+```
+
+As in step 2, actually (re)running *rbacon*/*rplum* here is gated by `run_bacon` (see step 2) as the `Example` dataset already includes completed `_synced` runs.
+
+```{r create-synced-age-models}
+if (run_bacon) {
+for (record_synced in names(record_data_synced)){
+  # Adjust this block if you need specific settings for a certain record, and copy it if you need different settings for multiple records. Don't forget to uncomment it to make sure your age-depth models are constructed correctly. Or change to Plum() if you defined lead_sample_names
+
+  # if (record_synced=="record_synced"){ ## Replace "record" by the name of the record for which you require specific settings
+  #   Bacon(core = record_adjusted,
+  #       coredir = syncer_wd,
+  #       sep = ',',
+  #       rotate.axes = TRUE,
+  #       thick = 1,
+  #       hiatus = hiatuses[[record]],
+  #       slump = event_depths[[record]],
+  #       ssize = 10000,
+  #       d.max = max_depths[record],
+  #       acc.mean = round(sedrates[record]),
+  #       suggest = FALSE,
+  #       accept.suggestions = TRUE
+  #       )
+  # } else {
+
+  Bacon(core = record_synced,
+        coredir = syncer_wd,
+        sep = ',',
+        rotate.axes = TRUE,
+        thick = 2,
+        ssize = 1000,
+        d.max = max_depths[record],
+        hiatus = hiatuses[[record]],
+        acc.mean = round(sedrates[record]),
+        suggest = FALSE,
+        accept.suggestions = TRUE,
+        run = FALSE #set to FALSE in case you already have the age models constructed
+        )
+  # }
+}
+}
+```
+
+After constructing the new age-depth models, extract the ages of the different event deposits in each synchronized record and export them to the `out_data_ages_synced.xlsx` file.
+
+```{r extract-synced-ages}
+reload_existing <- FALSE ## FALSE processes the bundled _synced .out files and creates out_data_ages_synced.xlsx; set TRUE on later runs to reuse an existing file
+event_ages_synced <- extract_ages(record_data = record_data, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, synced = "_synced", reload_existing = reload_existing, thick = 2)
+if (!reload_existing) {
+  export_to_excel(event_ages_synced, synced="_synced")}
+```
+
+If you've used the `mean` matching method, you could iteratively keep updating the isochron age to narrow down the precision, and make synchronicity evaluation more strict. This can be done by rerunning steps 3, 4 and 5, using the age-depth models created in step 5 (stored in the `event_ages_synced` variable) from the last iteration in the `process_event_ages()` function.
+
+## Step 6: Evaluate synchronicity
+
+The error on the above-defined ages for each isochron has an implication on what can later be considered a reasonable age difference to infer synchronicity when evaluating other event deposits. For example, if you allow an error (1-sigma) of 10 years on an event deposited 100 years ago, that already covers a maximum 20% age difference, or even 40% considering a 2-sigma uncertainty. Considering these are the isochrons, for which (presumably) there was independent age information that these events indeed occurred synchronously, it is not reasonable to demand an `age_difference` of less than 20 or 40% when evaluating potential synchronous deposition of an unknown deposit. To check which `age_difference` values would be reasonable for each isochron (and thus for the unknown deposits in that same time range), the code block below reports the considered relative age differences for each isochron considering a user-defined confidence level on the age interval (`sigma_multiplier`; 2 for 95.4% confidence on the age).
+
+```{r calculate-thresholds-from-synchronized-data}
+thresholds <- calculate_validation_thresholds(adjusted_ages, age_offset=age_offset, sigma_multiplier=2)
+print_validation_summary(thresholds)
+```
+
+You can first double-check if your isochrons now all show an improved synchronicity score by running the code block below. For a sensible test, it is recommended to have the `age_difference` and `confidence_level` variables to not be more constraining that the relative size of the error on the the assigned ages for each isochron, as calculated in the `{r calculate-thresholds-from-synchronized-data}` code block of step 6. These values were stored in the `thresholds` variable, and can thus be passed on to the `verify_synchronicity()` function as in the example below. The results are summarized in the `*_stats_synced.csv` file, and a summary of the lowest and highest probabilities for synchronicity is presented in-line.
+
+```{r test-isochrons-synced}
+isochron_stats_synced <- process_event_ages(event_ages_synced #change to event_ages in case you did not create new synchronized age models
+                                                 , isochrons, offset=age_offset)
+isochron_synchro_synced <- compute_synchronicity(isochron_stats_synced, isochrons,confidence_level=thresholds$confidence_levels,  age_difference=thresholds$validation_thresholds, 
+                                                 horizon_groups = isochron_groups)
+isochron_results <- verify_synchronicity(isochron_synchro_synced, isochrons, isochron=TRUE, synced="_synced" # set this to the suffix of the run you are referring to
+                                              , offset=age_offset)
+```
+
+Although the number of test passes has significantly increased, still not all isochrons across the different records show the desired age precision. This is especially true when the original radiocarbon ages were also taken into account in the construction of the model, as these might force the new age-depth model "away" from these new input ages because the age PDFs of radiocarbon ages are not normal distributions - unlike the input isochron ages. However, as long as your radiocarbon ages are accurate, the impact should be minimal, and you can still use them to construct the synchronized age-depth models. If you are not satisfied with the results, you can go back to step 4 and change the parameters that synchronize your age-depth models. An alternative option (especially recommendable if your age-depth models do not all have a comparable accuracy) is to create an age-depth model without (some of) the original input ages. To evaluate synchronicity of a certain horizon in a meaningful way, you need to have at least one age control (ideally, isochron or radiocarbon age with a reasonable accuracy) above and below the considered horizon.
+
+In the example dataset, one of the events is consistently named "*synchro-test"* in each record. These are chosen in a way that they indeed represent events that were input as synchronous in the synthetic dataset. For records 2 and 5, we deliberately selected an additional wrong event layer "*synchro-test-wrong"* in addition to the correctly-correlated horizon *"synchro-test"* to allow us to evaluate how well the methodology can resolve age differences and present reliable inferences on event synchronicity. The tested horizons are all positioned between *isochron2* and *isochron3*, for which synchronicity scores of 67 and 75% are obtained when considering an age difference of 5%.
+
+As the thresholds for testing should not be more constraining that the input errors on the nearby isochrons, the least constraining one can be defined in the block below by listing the isochrons between which the test horizon is deposited.
+
+```{r determine-test-thresholds}
+positioning_test <- list("synchro-test" = c("isochron2","isochron3"))
+
+thresholds_tests <- sapply(positioning_test, function(horizons) { max(thresholds$validation_thresholds[horizons], na.rm = TRUE) })
+```
+
+```{r test-synchronicity-synced}
+test_event_stats <- process_event_ages(event_ages_synced, #change to event_ages in case you did not create new synchronized age models
+                                       test_events, offset=age_offset)
+test_synchro <- compute_synchronicity(test_event_stats, test_events, confidence_level = confidence_level, age_difference = thresholds_tests, horizon_groups = test_horizon_groups)
+synchronicity_test <- verify_synchronicity(test_synchro, test_events, synced="_synced", offset=age_offset)
+```
+
+Using these values in combination with the test results of the input isochrons, you can report on the probability of synchronicity for different horizons. In the example, the highest synchronicity scores are achieved for combinations of the "*synchro-test"* horizons, which indeed represents the correct combination. Moreover, a synchronicity score above 70% is only ever achieved when only the "*synchro-test"* horizons are involved, any combination with "*synchro-test-wrong"* yields lower synchronicity scores. This forms another solid argument that "*synchro-test-wrong"* indeed represents a false correlation.
+
+## Step 7: Iteratively improve age model precision
+
+With the above information on potential synchronicity of certain deposits, you could consider further improving the age model precision by using these horizons as additional (secondary) isochrons. While this allows to evaluate the potential synchronicity of other deposits in more detail, **keep in mind that all ensuing inferences depend heavily on the assumption that these secondary isochrons can indeed be considered as synchronously deposited** (relative synchronicity evaluation). If this assumption is false, all of the interpretations resulting from synchronizing those deposits will be flawed as well. The below illustrates how the result of synchronicity testing can be included to further synchronize the different records.
+
+Firstly, the synchronized age of the secondary isochron should be calculated. If multiple horizons were included in the test for a single record, the horizons that should be considered non-synchronous should be added to the `non_synchro_horizons` variable. Called with `record_data_synced` and the new ages (no `update_records`), `age_model_input()` creates a new `_synced_1` generation of folders off the `_synced` ones, adding the secondary isochron to each record's CSV, and returns `record_data_synced_1` (re-keyed to `_synced_1`, with the new age baked in).
+
+```{r add-synchronous-horizons}
+matching_method <- c("Bayesian")
+non_synchro_horizons <- list("core2_synced" = "synchro-test-wrong", "core5_synced" = "synchro-test-wrong") # Horizons for which you tested synchronicity, but they are likely not and so should not be age-matched across records. Tested horizon sets that should be excluded entirely can be listed as "global" = "tested horizon".
+
+adjusted_ages <- set_to_zero(test_event_stats, test_synchro, method = matching_method, horizons = "synchro-test", excluded_horizons = non_synchro_horizons, offset = age_offset, horizon_groups = test_horizon_groups)
+record_data_synced_1 <- age_model_input(record_data_synced, adjusted_ages,
+                                        radiocarbon_sample_names = radiocarbon_sample_names, lead_sample_names = lead_sample_names)
+```
+
+Additionally, *rbacon* and *rplum* have the option to indicate older than or younger than ages in the input csv files. You could make use of this function when assigning the synchronized age to the false correlations tested earlier to ensure the age-depth models respect this non-synchronicity. This is illustrated below: passing the `record_data_synced_1` just returned together with `update_records = TRUE` updates those same `_synced_1` folders in place, adding the non-synchronous ages, and returns the fully updated `record_data_synced_1`.
+
+```{r add-non-synchronous-horizons}
+non_synchro_ages <- assign_excluded_ages(adjusted_ages, non_synchro_horizons, test_event_stats)
+record_data_synced_1 <- age_model_input(record_data_synced_1, non_synchro_ages, update_records = TRUE, radiocarbon_sample_names = radiocarbon_sample_names, lead_sample_names = lead_sample_names)
+```
+
+If you've assigned the synchronized age to the deposits that were considered non-synchronous using the above code block, use the positions of those horizons in your csv files to make use of the `younger.than = c()` or `older.than = c()` functionalities in *rbacon* and *rplum*. As per the *rbacon* manual, this might not always work, and an error message can be thrown - especially if the depths of the two tested horizons are close to one another. If this is the case, remove the non-synchronized horizons from you csv files again and proceed with merely the actual synchronous deposits as input.
+
+```{r iterative-bacon}
+if (run_bacon) {
+for (record_synced_1 in names(record_data_synced_1)){
+  
+  # Adjust this block if you need specific settings for a certain record, and copy it if you need different settings for multiple records. Don't forget to uncomment it to make sure your age-depth models are constructed correctly.
+
+  if (record=="core2_synced_1"){ ## Replace "record" by the name of the record for which you require specific settings
+   Bacon(core = record_synced_1,
+        coredir = syncer_wd,
+        sep = ',',
+        rotate.axes = TRUE,
+        thick = 2,
+        ssize = 1000,
+        d.max = max_depths[record],
+        slump = event_depths[[record]],
+        hiatus = hiatuses[[record]],
+        acc.mean = round(sedrates[record]),
+        suggest = FALSE,
+        accept.suggestions = TRUE,
+        #younger.than = c(2),
+        run = TRUE #set to FALSE in case you already have the age models constructed
+       )
+  } else if (record=="core5_synced_1"){ ## Replace "record" by the name of the record for which you require specific settings
+   Bacon(core = record_synced_1,
+        coredir = syncer_wd,
+        sep = ',',
+        rotate.axes = TRUE,
+        thick = 2,
+        ssize = 1000,
+        d.max = max_depths[record],
+        slump = event_depths[[record]],
+        hiatus = hiatuses[[record]],
+        acc.mean = round(sedrates[record]),
+        suggest = FALSE,
+        accept.suggestions = TRUE,
+        #older.than = c(8),
+        run = TRUE #set to FALSE in case you already have the age models constructed
+       )
+  } else {
+
+    Bacon(core = record_synced_1,
+        coredir = syncer_wd,
+        sep = ',',
+        rotate.axes = TRUE,
+        thick = 2,
+        ssize = 1000,
+        d.max = max_depths[record],
+        slump = event_depths[[record]],
+        hiatus = hiatuses[[record]],
+        acc.mean = round(sedrates[record]),
+        suggest = FALSE,
+        accept.suggestions = TRUE,
+        run = TRUE #set to FALSE in case you already have the age models constructed
+        )
+   }
+}
+}
+```
+
+After running the age models, you can proceed with extracting the age information as before, and return to step 6 to evaluate synchronicity of additional deposits by considering the `event_ages_synced2` variable calculated below as input for the `process_event_ages()` function.
+
+```{r extract-synced-ages-adjusted}
+event_ages_synced_1 <- extract_ages(record_data = record_data_synced_1, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, synced = "synced_1",reload_existing = FALSE, thick = 2)
+export_to_excel(event_ages_synced_1, synced = "synced_1")
+```
+
+You could iteratively keep synchronizing new horizons by re-running step 6 and this step again, each time passing the latest `record_data_synced_N` into `age_model_input()` -- it creates the next numbered generation (`_synced_2`, `_synced_3`, ...) and returns the record_data to carry into the following iteration.
