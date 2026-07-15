@@ -110,22 +110,39 @@ event_ages_synced <- extract_ages(
 #   offset           : datum added to the ages so the log-ratios are defined
 #                      (same convention as process_event_ages(offset = ...));
 #                      defaults to the pipeline's age_offset.
+#   seed             : fixed RNG seed for the package's internal resampling. Held
+#                      constant across every datum (and every variant) so the ONLY
+#                      thing that moves the score is the offset, not Monte-Carlo
+#                      resampling. The caller's RNG state is restored on exit.
 #
 # Returns:
 #   overall_ss  : package overall synchronicity score (NA if < 2 cores)
-#   pairwise_ss : NULL (not used by the confusion evaluation)
-#   ss_pass     : logical — TRUE if overall_ss >= confidence_level
 compute_ss_score <- function(age_list,
                              age_difference   = 0.07,
                              confidence_level = 0.95,
                              n_samples        = 10000,
-                             offset           = age_offset) {
+                             offset           = age_offset,
+                             seed             = 20240101L) {
   if (length(age_list) < 2)
-    return(list(overall_ss = NA_real_, pairwise_ss = NULL, ss_pass = NA))
+    return(list(overall_ss = NA_real_))
 
   # Shift onto the datum (positive ages for the log-ratio), then score with the package.
   shifted <- lapply(age_list, function(a) a + offset)
   t <- log(1 + age_difference)   # symmetric log-space bounds, as in the package
+
+  # Deterministic Monte Carlo: fix the RNG so calculate_overall_synchronicity()
+  # resamples the SAME posterior indices at every datum and for every variant.
+  # This makes the per-datum SS scores (and hence the max-wins ranking) a pure
+  # function of the offset — re-running gives identical PASS/FAIL, and any change
+  # across datums is genuinely the datum, not resampling noise. The previous RNG
+  # state is saved and restored on exit so the rest of the pipeline is unaffected.
+  if (exists(".Random.seed", envir = .GlobalEnv)) {
+    old_seed <- get(".Random.seed", envir = .GlobalEnv)
+    on.exit(assign(".Random.seed", old_seed, envir = .GlobalEnv), add = TRUE)
+  } else {
+    on.exit(suppressWarnings(rm(".Random.seed", envir = .GlobalEnv)), add = TRUE)
+  }
+  set.seed(seed)
 
   res <- tryCatch(
     calculate_overall_synchronicity(shifted,
@@ -135,12 +152,7 @@ compute_ss_score <- function(age_list,
     error = function(e) list(overall_score = NA_real_)
   )
 
-  overall_ss <- res$overall_score
-  list(
-    overall_ss  = overall_ss,
-    pairwise_ss = NULL,
-    ss_pass     = if (is.na(overall_ss)) NA else overall_ss >= confidence_level
-  )
+  list(overall_ss = res$overall_score)
 }
 
 
@@ -162,14 +174,18 @@ compute_ss_score <- function(age_list,
 #   ss_datums        : optional numeric vector of datums (offsets). When supplied,
 #                      the SS overall score is also computed at each datum and
 #                      returned in $ss_by_datum (named "ss_pass_<d>"). Used by the
-#                      combined path to build the per-datum SS_Pass methods; the
+#                      combined path to build the per-datum SS methods; the
 #                      pairwise path leaves it NULL (SS is not a pairwise method).
+#   seed             : RNG seed handed to compute_ss_score, held constant across
+#                      every datum so within-run SS variability is due to the datum
+#                      only. Vary it between runs to probe Monte-Carlo variability.
 #
 # Returns a named list with all raw test results (see fields below).
 run_all_tests <- function(age_list, label,
                           age_difference   = 0.07,
                           confidence_level = 0.95,
-                          ss_datums        = NULL) {
+                          ss_datums        = NULL,
+                          seed             = 20240101L) {
   n <- length(age_list)
   if (n < 2) {
     warning(paste("Skipping", label, "- fewer than 2 records"))
@@ -209,18 +225,11 @@ run_all_tests <- function(age_list, label,
     pair_overlaps[[pn]] <- tryCatch(overlap(age_list[pair]), error = function(e) NULL)
   }
 
-  ss_result <- tryCatch(
-    compute_ss_score(age_list,
-                     age_difference   = age_difference,
-                     confidence_level = confidence_level),
-    error = function(e) {
-      warning(paste("SS score failed:", label, e$message))
-      list(overall_ss = NA_real_, pairwise_ss = NULL, ss_pass = NA)
-    }
-  )
+  # SS is scored ONLY across the datum sweep below (ss_by_datum). There is no
+  # single "default datum" SS score anymore — every datum is reported explicitly.
 
-  # Optionally score SS across a sweep of datums (offsets). Each is an independent
-  # package call with the datum applied as the age shift; NA on failure.
+  # Score SS across a sweep of datums (offsets). Each is an independent package
+  # call with the datum applied as the age shift; NA on failure.
   ss_by_datum <- NULL
   if (!is.null(ss_datums)) {
     ss_by_datum <- vapply(ss_datums, function(d) {
@@ -228,7 +237,8 @@ run_all_tests <- function(age_list, label,
         compute_ss_score(age_list,
                          age_difference   = age_difference,
                          confidence_level = confidence_level,
-                         offset           = d)$overall_ss,
+                         offset           = d,
+                         seed             = seed)$overall_ss,
         error = function(e) NA_real_
       )
     }, numeric(1))
@@ -244,10 +254,7 @@ run_all_tests <- function(age_list, label,
     parnell_diffs    = parnell_diffs,
     ov_overall       = ov_overall,
     pair_overlaps    = pair_overlaps,
-    synchronicity_score = ss_result$overall_ss,
-    pairwise_ss         = ss_result$pairwise_ss,
-    ss_pass             = ss_result$ss_pass,
-    ss_by_datum         = ss_by_datum
+    ss_by_datum      = ss_by_datum
   )
 }
 
@@ -282,9 +289,10 @@ run_all_tests <- function(age_list, label,
 #   confidence_level : passed for reference; not used for TRUE/FALSE here
 #   alpha            : significance level for dynamic threshold (default 0.05)
 #
-# Returns: data.frame with columns comparison, real_sync, SS_Pass,
+# Returns: data.frame with columns comparison, real_sync,
 #          Passes_ChiSq, OV_Passes, Synchro_OxcalDiff_PASS,
-#          Synchro_ParnellDiff_PASS, raw_SS, raw_Acomb, raw_OV
+#          Synchro_ParnellDiff_PASS, raw_Acomb, raw_OV, plus per-datum SS
+#          columns ss_pass_<d> (max-wins verdict) and raw_ss_<d> (raw score).
 build_combined_rows <- function(correct_result, wrong_results,
                                 confidence_level = 0.95) {
   if (is.null(correct_result)) return(NULL)
@@ -309,35 +317,37 @@ build_combined_rows <- function(correct_result, wrong_results,
   # Helper: safely extract a scalar score
   get_score <- function(res, field) {
     val <- switch(field,
-                  "SS"    = res$synchronicity_score,
                   "Acomb" = if (!is.null(res$combine_overall)) res$combine_overall$A_comb else NULL,
                   "OV"    = if (!is.null(res$ov_overall))      res$ov_overall$OV          else NULL
     )
     if (is.null(val) || !is.finite(val)) NA_real_ else val
   }
 
-  ss_vals    <- sapply(all_results, get_score, "SS")
   acomb_vals <- sapply(all_results, get_score, "Acomb")
   ov_vals    <- sapply(all_results, get_score, "OV")
 
-  # SS: max-wins, no absolute threshold
-  max_SS    <- if (all(is.na(ss_vals))) NA_real_ else max(ss_vals, na.rm = TRUE)
-  is_max_ss <- !is.na(ss_vals) & ss_vals == max_SS
+  # SS is evaluated per-datum only (see below); there is no single overall SS_Pass.
 
-  # Per-datum SS: same max-wins rule applied to each datum's scores. Column names
+  # Per-datum SS: max-wins rule applied to each datum's scores. Column names
   # come from ss_by_datum ("ss_pass_0", "ss_pass_10", ...); all variants in a group
   # were scored on the same datum vector, so the names are consistent.
   datum_names <- NULL
   for (r in all_results)
     if (!is.null(r$ss_by_datum)) { datum_names <- names(r$ss_by_datum); break }
   ss_datum_pass <- list()
+  ss_datum_raw  <- list()   # raw SS score per variant, per datum (for verifying PASS/FAIL)
   for (dn in datum_names) {
     dvals <- vapply(all_results, function(r) {
       v <- if (!is.null(r$ss_by_datum)) r$ss_by_datum[[dn]] else NA_real_
       if (is.null(v) || !is.finite(v)) NA_real_ else v
     }, numeric(1))
     dmax <- if (all(is.na(dvals))) NA_real_ else max(dvals, na.rm = TRUE)
-    ss_datum_pass[[dn]] <- !is.na(dvals) & dvals == dmax
+    # Max-wins with two guards:
+    #  - if the highest score is 0 (or all NA) there is no real winner -> everyone FALSE;
+    #  - if several variants tie at the (positive) maximum, they ALL get TRUE.
+    ss_datum_pass[[dn]] <- !is.na(dvals) & !is.na(dmax) & dmax > 0 & dvals == dmax
+    # Companion raw-score column, named raw_ss_<d> alongside the pass column ss_pass_<d>.
+    ss_datum_raw[[sub("^ss_pass_", "raw_ss_", dn)]] <- dvals
   }
 
   # A_comb: max-wins AND must clear the dynamic chi-squared threshold
@@ -363,12 +373,10 @@ build_combined_rows <- function(correct_result, wrong_results,
     data.frame(
       comparison               = res$label,
       real_sync                = real_sync_vals[k],
-      SS_Pass                  = is_max_ss[k],
       Passes_ChiSq             = is_max_acomb[k],
       OV_Passes                = is_max_ov[k],
       Synchro_OxcalDiff_PASS   = if (!is.na(n_sig_oxcal))   n_sig_oxcal   == 0 else NA,
       Synchro_ParnellDiff_PASS = if (!is.na(n_sig_parnell)) n_sig_parnell == 0 else NA,
-      raw_SS    = ss_vals[k],
       raw_Acomb = acomb_vals[k],
       raw_OV    = ov_vals[k],
       used_acomb_thresh = acomb_thresh,   # 100/sqrt(2*n), decreases with n
@@ -378,11 +386,16 @@ build_combined_rows <- function(correct_result, wrong_results,
 
   out <- do.call(rbind, rows)
 
-  # Append the per-datum SS_Pass columns (ss_pass_0, ss_pass_10, ...), aligned by
-  # variant position with `out`.
+  # Append the per-datum SS_Pass columns (ss_pass_0, ss_pass_10, ...) together with
+  # their companion raw-score columns (raw_ss_0, raw_ss_10, ...), aligned by variant
+  # position with `out`. The raw scores let you verify each PASS/FAIL by hand.
   if (length(ss_datum_pass) > 0) {
     datum_df <- as.data.frame(ss_datum_pass, check.names = FALSE)
     out <- cbind(out, datum_df)
+  }
+  if (length(ss_datum_raw) > 0) {
+    raw_df <- as.data.frame(ss_datum_raw, check.names = FALSE)
+    out <- cbind(out, raw_df)
   }
   out
 }
@@ -434,8 +447,8 @@ print_confusion_block <- function(df, methods, title) {
 
 pairwise_methods <- c("Passes_ChiSq", "OV_Passes",
                       "Synchro_OxcalDiff_PASS", "Synchro_ParnellDiff_PASS")
-# The single SS_Pass method is expanded into one method per datum (ss_pass_0,
-# ss_pass_10, ...), so method_performance reports SS at every datum considered.
+# SS is reported as one method per datum (ss_pass_0, ss_pass_10, ...); there is no
+# single collapsed SS_Pass. method_performance thus scores SS at every datum.
 combined_methods <- c(paste0("ss_pass_", datums_to_test),
                       "Passes_ChiSq", "OV_Passes",
                       "Synchro_OxcalDiff_PASS", "Synchro_ParnellDiff_PASS")
@@ -454,6 +467,13 @@ combined_methods <- c(paste0("ss_pass_", datums_to_test),
 #   age_difference   : relative tolerance for SS
 #   confidence_level : SS pass threshold
 #   ev_ages_struct   : optional structural template (see note below)
+#   seed             : RNG seed for this run. When non-NULL, (a) the whole run is
+#                      made reproducible via set.seed(seed) up front, (b) the seed
+#                      is threaded into the SS scoring, and (c) "_seed<NNN>" is
+#                      appended to every output filename. Run the same comparison
+#                      under several seeds to separate the two sources of spread:
+#                      datum variability WITHIN one _seed file, and Monte-Carlo
+#                      variability BETWEEN _seed files at the same datum.
 #
 # ev_ages_struct note:
 #   For the synced run, event_ages_synced may have core names like "core1_synced"
@@ -465,9 +485,17 @@ combined_methods <- c(paste0("ss_pass_", datums_to_test),
 run_comparisons <- function(ev_ages, rec_data, suffix = "",
                             age_difference   = 0.07,
                             confidence_level = 0.95,
-                            ev_ages_struct   = NULL) {
+                            ev_ages_struct   = NULL,
+                            seed             = NULL) {
 
   if (is.null(ev_ages_struct)) ev_ages_struct <- ev_ages
+
+  # Reproducible run + filename tag. compute_ss_score() saves/restores the RNG
+  # around its own seeding, so this global seed drives the other (Parnell/overlap)
+  # Monte-Carlo consistently without disturbing the datum-isolated SS resampling.
+  seed_tag <- if (is.null(seed)) "" else sprintf("_seed%03d", seed)
+  run_seed <- if (is.null(seed)) 20240101L else seed
+  if (!is.null(seed)) set.seed(seed)
 
   label_tag <- if (nchar(suffix) == 0) "NON-SYNCED" else "SYNCED"
   cat(sprintf("\n\n%s\n  RUNNING COMPARISONS: %s\n%s\n\n",
@@ -518,7 +546,7 @@ run_comparisons <- function(ev_ages, rec_data, suffix = "",
     age_list <- setNames(list(aA, aB), c(cA, cB))
     res <- tryCatch(
       run_all_tests(age_list, key, age_difference = age_difference,
-                    confidence_level = confidence_level),
+                    confidence_level = confidence_level, seed = run_seed),
       error = function(e) {
         warning(sprintf("run_pair failed for %s vs %s: %s", cA, cB, e$message))
         NULL
@@ -561,7 +589,7 @@ run_comparisons <- function(ev_ages, rec_data, suffix = "",
     tryCatch(
       run_all_tests(age_list, label, age_difference = age_difference,
                     confidence_level = confidence_level,
-                    ss_datums = datums_to_test),
+                    ss_datums = datums_to_test, seed = run_seed),
       error = function(e) {
         warning(sprintf("run_combined_variant failed for '%s': %s", label, e$message))
         NULL
@@ -1125,40 +1153,105 @@ run_comparisons <- function(ev_ages, rec_data, suffix = "",
   cmb_summary <- print_confusion_block(combined_df,  combined_methods,
                                        paste("Combined", label_tag))
 
-  pw_file   <- file.path(results_dir, paste0("pairwise_decisions", suffix, ".csv"))
-  cmb_file  <- file.path(results_dir, paste0("combined_decisions", suffix, ".csv"))
-  perf_file <- file.path(results_dir, paste0("method_performance",  suffix, ".csv"))
+  # Stamp the seed on every table so files can be pooled and grouped by seed later.
+  perf_df <- rbind(pw_summary, cmb_summary)
+  if (!is.null(seed)) {
+    pairwise_df$seed <- seed
+    combined_df$seed <- seed
+    perf_df$seed     <- seed
+  }
 
-  write.csv(pairwise_df,                    pw_file,   row.names = FALSE)
-  write.csv(combined_df,                    cmb_file,  row.names = FALSE)
-  write.csv(rbind(pw_summary, cmb_summary), perf_file, row.names = FALSE)
+  pw_file   <- file.path(results_dir, paste0("pairwise_decisions", suffix, seed_tag, ".csv"))
+  cmb_file  <- file.path(results_dir, paste0("combined_decisions", suffix, seed_tag, ".csv"))
+  perf_file <- file.path(results_dir, paste0("method_performance",  suffix, seed_tag, ".csv"))
 
-  cat(sprintf("\nSaved [%s]:\n  %s\n  %s\n  %s\n",
-              label_tag, pw_file, cmb_file, perf_file))
+  write.csv(pairwise_df, pw_file,   row.names = FALSE)
+  write.csv(combined_df, cmb_file,  row.names = FALSE)
+  write.csv(perf_df,     perf_file, row.names = FALSE)
+
+  cat(sprintf("\nSaved [%s%s]:\n  %s\n  %s\n  %s\n",
+              label_tag, seed_tag, pw_file, cmb_file, perf_file))
 
   invisible(list(pairwise = pairwise_df, combined = combined_df,
-                 performance = rbind(pw_summary, cmb_summary)))
+                 performance = perf_df))
 }
 
 # =============================================================================
-# RUN THE COMPARISONS  (raw and synchronised event ages)
+# RUN THE COMPARISONS  (raw and synchronised event ages), ACROSS A SET OF SEEDS
 # =============================================================================
-results_nonsynced <- run_comparisons(event_ages,        rec_data = record_data, suffix = "")
-results_synced    <- run_comparisons(event_ages_synced, rec_data = record_data, suffix = "_synced",
-                                     ev_ages_struct = event_ages)
+# The entire comparison is repeated once per seed. Each seed produces its own
+# self-consistent set of CSVs tagged "_seed<NNN>". This separates the two sources
+# of spread:
+#   • WITHIN one seed: the resampling is fixed, so any change across the per-datum
+#     SS columns (ss_pass_0, ss_pass_100, ...) is genuine datum variability.
+#   • BETWEEN seeds (same datum column across _seed files): the datum is fixed, so
+#     any change is Monte-Carlo / random variability of the SS score.
+# Add or remove seeds here; each is an independent full run.
+seeds_to_test <- c(1, 2, 3)
 
-# Combined performance summary across all four sheets (pairwise/combined x
-# non-synced/synced), keeping every method row -- including the per-datum SS
-# methods ss_pass_0, ss_pass_100, ... -- so the datum sensitivity of the SS
-# method is visible in one table.
-method_performance_summary <- rbind(results_nonsynced$performance,
-                                    results_synced$performance)
-write.csv(method_performance_summary,
-          file.path(results_dir, "method_performance_summary.csv"), row.names = FALSE)
+all_files     <- character()
+all_summaries <- list()   # per-seed performance summaries, pooled for the across-seeds table
 
-cat("\n\n=== DONE ===\nResults written to:\n  ", results_dir, "\n\nFiles:\n")
-for (f in c("pairwise_decisions.csv",        "combined_decisions.csv",
-            "method_performance.csv",
-            "pairwise_decisions_synced.csv", "combined_decisions_synced.csv",
-            "method_performance_synced.csv", "method_performance_summary.csv"))
-  cat("  ", f, "\n")
+for (s in seeds_to_test) {
+  cat(sprintf("\n\n##############  SEED %03d  ##############\n", s))
+
+  results_nonsynced <- run_comparisons(event_ages, rec_data = record_data,
+                                       suffix = "", seed = s)
+  results_synced    <- run_comparisons(event_ages_synced, rec_data = record_data,
+                                       suffix = "_synced", ev_ages_struct = event_ages,
+                                       seed = s)
+
+  # Per-seed performance summary across all four sheets (pairwise/combined x
+  # non-synced/synced), keeping every method row -- including the per-datum SS
+  # methods ss_pass_0, ss_pass_100, ...
+  seed_tag <- sprintf("_seed%03d", s)
+  method_performance_summary <- rbind(results_nonsynced$performance,
+                                      results_synced$performance)
+  summary_file <- file.path(results_dir, paste0("method_performance_summary", seed_tag, ".csv"))
+  write.csv(method_performance_summary, summary_file, row.names = FALSE)
+
+  all_summaries[[seed_tag]] <- method_performance_summary
+  all_files <- c(all_files,
+                 paste0("pairwise_decisions",        seed_tag, ".csv"),
+                 paste0("combined_decisions",        seed_tag, ".csv"),
+                 paste0("method_performance",        seed_tag, ".csv"),
+                 paste0("pairwise_decisions_synced", seed_tag, ".csv"),
+                 paste0("combined_decisions_synced", seed_tag, ".csv"),
+                 paste0("method_performance_synced", seed_tag, ".csv"),
+                 paste0("method_performance_summary", seed_tag, ".csv"))
+}
+
+
+# =============================================================================
+# ACROSS-SEED AGGREGATE
+# =============================================================================
+# Pool the per-seed performance summaries and, for each (Method, Sheet), report
+# the mean and sd of every metric over the seeds. This is the between-seed
+# (Monte-Carlo) view: for a given method — e.g. a per-datum SS method ss_pass_500
+# — <metric>_mean is its typical performance and <metric>_sd is how much random
+# resampling moves it. A large sd flags a method/datum whose PASS/FAIL is unstable.
+pooled_summary <- do.call(rbind, all_summaries)
+rownames(pooled_summary) <- NULL
+
+metric_cols <- c("TP", "TN", "FP", "FN", "N",
+                 "Accuracy", "Precision", "Recall", "F1")
+
+across_seeds <- pooled_summary %>%
+  group_by(Method, Sheet) %>%
+  summarise(
+    n_seeds = n(),
+    across(all_of(metric_cols),
+           list(mean = ~mean(.x, na.rm = TRUE), sd = ~sd(.x, na.rm = TRUE)),
+           .names = "{.col}_{.fn}"),
+    .groups = "drop"
+  ) %>%
+  mutate(across(where(is.numeric), ~round(.x, 3)))
+
+across_file <- file.path(results_dir, "method_performance_across_seeds.csv")
+write.csv(across_seeds, across_file, row.names = FALSE)
+all_files <- c(all_files, "method_performance_across_seeds.csv")
+
+
+cat("\n\n=== DONE ===\nResults written to:\n  ", results_dir, "\n")
+cat(sprintf("Seeds: %s\n\nFiles:\n", paste(sprintf("%03d", seeds_to_test), collapse = ", ")))
+for (f in all_files) cat("  ", f, "\n")
