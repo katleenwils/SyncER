@@ -28,14 +28,13 @@ library(SyncER)
 
 #### Reporting bugs
 
-If you run into a problem or unexpected behaviour, please open an issue on the [GitHub issue tracker](https://github.com/katleenwils/SyncER/issues). A report is most useful when it includes:
+If you run into a problem or unexpected behaviour, please open an issue on the [GitHub issue tracker](https://github.com/katleenwils/SyncER/issues) or contact the developer. Questions and suggestions are welcome there too, and will be accomodated as much as reasonably possible.
+A report is most useful when it includes:
 
 - the version of *SyncER* you are running (`packageVersion("SyncER")`),
 - the output of `sessionInfo()`,
 - a minimal example that reproduces the problem — the bundled example dataset is ideal,
 - what you expected to happen, and what happened instead.
-
-Questions and suggestions are welcome there too.
 
 #### Disclaimer
 
