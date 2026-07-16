@@ -1,12 +1,12 @@
-#' Derive Event-Type Variables from a Horizon Groups Definition
+#' Derive event-type variables from a defined horizon group
 #'
 #' Expands a single \code{horizon_groups} definition into the \code{event_types},
 #' \code{isochrons}, \code{test_events}, \code{isochron_groups}, and
 #' \code{test_horizon_groups} values consumed by the rest of the \emph{SyncER}
-#' workflow (\code{extract_ages()}, \code{compute_synchronicity()},
-#' \code{set_to_zero()}, etc.). Combine with \code{list2env()} to unpack the
+#' workflow (\code{load_event_ages()}, \code{compute_synchronicity_values()},
+#' \code{synchronize_ages()}, etc.). Combine with \code{list2env()} to unpack the
 #' result into your script in a single line, e.g.
-#' \code{list2env(expand_horizon_groups(horizon_groups), environment())}.
+#' \code{list2env(load_horizon_names(horizon_groups), environment())}.
 #'
 #' @param horizon_groups Named list, one entry per event type present in your
 #'   records. Each entry is itself a list with:
@@ -24,7 +24,7 @@
 #'   \code{test_events}, \code{isochron_groups}, and \code{test_horizon_groups}.
 #'
 #' @export
-expand_horizon_groups <- function(horizon_groups) {
+load_horizon_names <- function(horizon_groups) {
 
   event_types <- names(horizon_groups)
 

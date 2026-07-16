@@ -1,4 +1,4 @@
-#' Set Up Working Directory and Output Folder
+#' Set up SyncER working directory and output folder
 #'
 #' Sets the working directory \emph{SyncER} should use, and ensures a \code{SyncER_outputs} folder exists there
 #' for output files. Call it yourself once, after \code{library(SyncER)}, at the top of your analysis
@@ -31,10 +31,10 @@ syncer_setup <- function(wd = getOption("SyncER.wd")) {
   invisible(out_dir)
 }
 
-#' SyncER Output Directory
+#' Set up SyncER output directory
 #'
 #' Returns the path to the \code{SyncER_outputs} folder inside the current
-#' working directory, creating it if it does not already exist. Every SyncER
+#' working directory, creating it if it does not already exist. Every \emph{SyncER}
 #' function that writes files (CSVs, Excel workbooks, PDFs) defaults its
 #' output-location argument to this folder, so that all package output ends
 #' up in one predictable place unless the user explicitly overrides it.

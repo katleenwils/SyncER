@@ -1,4 +1,4 @@
-#' Assess Log-Ratio Vector for Distributional Quality
+#' Asses log-ratio value distribution for normality and centering to allow for synchronicity precision calculation
 #'
 #' Tests whether a log-ratio vector has a normal shape (via \code{shape_ok()}) and
 #' is sufficiently centred (mean within half a standard deviation of zero). Both
@@ -25,7 +25,7 @@ assess_lr <- function(ABlr) {
   )
 }
 
-#' Sample Pairwise Log-Ratio
+#' MC sampling of age input to calculate log-ratio values
 #'
 #' Draws \code{n_samples} values with replacement from each of two age-sample
 #' vectors and returns the vector of log-ratios log(A / B).
@@ -42,7 +42,7 @@ compute_pairwise_lr <- function(samples_a, samples_b, n_samples = 10000) {
                 sample(samples_b, size = n_samples, replace = TRUE)))
 }
 
-#' Find Precision Threshold for a Log-Ratio Distribution
+#' Calculate minimal synchronicity precision value in log-space
 #'
 #' Returns the smallest absolute log-ratio value \eqn{t} such that at least
 #' \code{conf_level} of \code{ABlr} values fall within \eqn{[-t, t]}.
@@ -54,7 +54,7 @@ compute_pairwise_lr <- function(samples_a, samples_b, n_samples = 10000) {
 #'   desired coverage cannot be achieved.
 #'
 #' @keywords internal
-find_precision_threshold <- function(ABlr, conf_level) {
+compute_minimal_precision_threshold <- function(ABlr, conf_level) {
   ABlr <- ABlr[!is.na(ABlr)]
   if (length(ABlr) == 0) return(NA)
   abs_vals <- sort(abs(ABlr))
@@ -63,10 +63,13 @@ find_precision_threshold <- function(ABlr, conf_level) {
   if (is.na(idx)) NA else abs_vals[idx]
 }
 
-#' Calculate Overall Synchronicity Score Using ALR Approach
+#' Calculate overall synchronicity score using additive log-ratios
 #'
-#' Calculates overall synchronicity scores across multiple records using additive
-#' log-ratio (ALR) transformation.
+#' Calculates overall synchronicity scores (i.e. the probability that all horizons are simultaneously synchronous) 
+#' across multiple records using additive log-ratio (ALR) transformation. 
+#' Uses the first record alphabetically as reference. The reference record's Monte Carlo resample is drawn once and shared across every non-reference 
+#' column, since all comparisons are against the same single (uncertain) reference record; each non-reference
+#'   record is independently resampled, reflecting that their age models are unrelated.
 #'
 #' @param samples_list Named list of numeric vectors containing posterior age samples,
 #'   one per record.
@@ -80,8 +83,8 @@ find_precision_threshold <- function(ABlr, conf_level) {
 #'     \item \code{overall_score}: Numeric value representing the proportion of joint Monte
 #'           Carlo draws (rows of the (k-1)-dimensional ALR distribution) for which
 #'           \emph{every} non-reference record is simultaneously within bounds of the shared
-#'           reference draw for that row -- the joint probability that all considered
-#'           records are synchronous, not merely their marginal average.
+#'           reference draw for that row. This is the joint probability that all considered
+#'           records are synchronous.
 #'     \item \code{overall_precision}: Numeric value representing the smallest age-difference
 #'           tolerance (as a proportion) for which \code{overall_score}'s joint
 #'           (all-records-simultaneously) requirement would reach \code{conf_level}, or NA
@@ -91,15 +94,8 @@ find_precision_threshold <- function(ABlr, conf_level) {
 #'           denominator in ALR
 #'   }
 #'
-#' @details Uses the first record alphabetically as reference. The reference record's Monte
-#'   Carlo resample is drawn once and shared across every non-reference column, since all
-#'   comparisons are against the same single (uncertain) reference record; each non-reference
-#'   record is independently resampled, reflecting that their age models are unrelated. This
-#'   shared reference draw is what makes \code{overall_score}'s row-wise joint requirement
-#'   meaningful, rather than an arbitrary pairing of unrelated values.
-#'
 #' @export
-calculate_overall_synchronicity <- function(samples_list,
+compute_overall_synchronicity <- function(samples_list,
                                             conf_level,
                                             age_diff_log_bounds,
                                             n_samples = 10000,

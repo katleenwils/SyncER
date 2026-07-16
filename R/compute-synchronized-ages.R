@@ -1,11 +1,9 @@
-#' Compute Synchronized Ages
+#' Compute synchronized ages
 #'
-#' Pure-compute core for age synchronization. Performs all method dispatch and age
-#' calculation without any plotting or file I/O.
+#' Age synchronization function that calculates age for considered isochrons using one of five possible methods. 
 #'
 #' @param event_stats List containing processed age data and summaries (output from
 #'   \code{process_event_ages()}).
-#' @param synchro_results Results from \code{verify_synchronicity()}.
 #' @param method Character string or named character vector specifying the synchronization
 #'   method(s) used to assign a fixed age (and thus set the age difference between records to
 #'   zero) for each horizon. Supply a single string to apply one method to every horizon in
@@ -14,34 +12,42 @@
 #'   \code{horizons} but not named here falls back to \code{"mean"}. One of the following
 #'   (default: \code{NULL}, i.e. \code{"mean"} for every horizon):
 #'   \itemize{
-#'     \item \code{"mean"} -- uses the mean and standard deviation of the available age
+#'     \item \code{"mean"} uses the mean and standard deviation of the available age
 #'           estimates across records. Recommended when the actual age is unknown (default).
-#'     \item \code{"mean_fixederror"} -- uses the mean of the available age estimates but
+#'     \item \code{"mean_fixederror"} uses the mean of the available age estimates but
 #'           applies an arbitrarily small, user-supplied error (via \code{age_error}).
 #'           Recommended when the actual age is unknown and you want to be very strict for
 #'           synchronicity testing.
-#'     \item \code{"Bayesian"} -- combines the per-record age PDFs using the Bayesian rules
+#'     \item \code{"Bayesian"} combines the per-record age PDFs using the Bayesian rules
 #'           for combination of probabilities (Bayes 1763; Doran and Hodgson 1975; see
-#'           \url{https://c14.arch.ox.ac.uk/oxcal3/math_ca.htm#comb}). Recommended when the
-#'           actual age is unknown but the age-depth models are assumed to be accurate.
-#'     \item \code{"ageofrecord"} -- adopts the age estimate of one specific record (chosen
+#'           \url{https://c14.arch.ox.ac.uk/oxcal3/math_ca.htm#comb}). This will generate a 
+#'           plot with the age PDFs of the considered event across the different records, 
+#'           and the resulting age combination. Recommended only when the actual age is unknown 
+#'           but the age-depth models are assumed to be accurate.
+#'     \item \code{"ageofrecord"} adopts the age estimate of one specific record (chosen
 #'           via \code{age_record}). Recommended when there are clear indications that one age
 #'           model is more accurate than the others.
-#'     \item \code{"age"} -- assigns a specific, externally-known age and error (via
+#'     \item \code{"age"} assigns a specific, externally-known age and error (via
 #'           \code{age_value}, \code{age_error} and \code{age_cc}). Recommended when independent
 #'           calibrated age information is available.
 #'   }
 #' @param horizons Character vector of the horizon names to synchronize (default: \code{NULL}).
 #'   Include every horizon you want to assign a fixed age to. Horizons listed here without an
-#'   explicit entry in \code{method} are synchronized with \code{"mean"}.
-#' @param excluded_horizons Named or unnamed character vector (or list) of horizons to leave out
-#'   of the synchronization (default: \code{NULL}). Name an entry after a record to exclude a
-#'   horizon only for that record (\code{list("core2_synced" = "synchro-test-wrong")}, e.g. a
-#'   layer you tested but consider non-synchronous in that record). Use the key \code{"global"}
-#'   (or an unnamed entry) to exclude a tested horizon set from every record.
+#'   explicit entry in \code{method} are synchronized with \code{"mean"} 
+#'   (unless a single method value is supplied that applies to every horizon).
+#' @param nonsynchro_horizons Horizons that were tested but are considered \emph{not}
+#'   synchronous, and so should not be age-matched across records (default: \code{NULL}).
+#'   Name an entry after a record (\code{list("core2_synced" = "synchro-test-wrong")}) to drop
+#'   that record's layer from the horizon's calculation and from its synchronized age, while
+#'   the other records still synchronize it. Use the key \code{"global"} (or an unnamed entry)
+#'   to drop a horizon in every record, which is useful for a name variant you never want matched. To
+#'   skip a standalone horizon altogether, simply leave it out of \code{horizons}. Horizon
+#'   names are matched exactly, so use \code{horizon_groups} to declare the name variants of a
+#'   single event. Pass the same value to \code{assign_nonsynchro_age()} to give these horizons
+#'   an older-than/younger-than reference age instead.
 #' @param excluded_records Character vector or named list of records to exclude from the pooled
 #'   (\code{"mean"}, \code{"mean_fixederror"}, \code{"Bayesian"}) age calculations (default:
-#'   \code{NULL}) -- e.g. a record with unreliable age information. Pass a character vector
+#'   \code{NULL}) - e.g. a record with unreliable age information. Pass a character vector
 #'   (\code{c("core3")}) to exclude the record(s) for every horizon, or a named list
 #'   (\code{list("isochron3" = "core3")}) to exclude a record only for specific horizons.
 #' @param age_record Character string naming the record whose age estimate is adopted when
@@ -75,16 +81,15 @@
 #'     \item \code{adjusted_ages}: Named list of data frames (one per horizon) with columns
 #'           \code{record}, \code{adjusted_age}, \code{adjusted_error}, \code{cc}
 #'     \item \code{bayesian_plot_data}: Named list (one entry per Bayesian horizon) with
-#'           raw plot data — pass each element to \code{plot_bayesian_combination()} to
+#'           raw plot data — pass each element to \code{plot_bayesian_age_combination()} to
 #'           draw to the console or save a PDF
 #'   }
 #'
 #' @export
 compute_synchronized_ages <- function(event_stats,
-                                      synchro_results,
                                       method = NULL,
                                       horizons = NULL,
-                                      excluded_horizons = NULL,
+                                      nonsynchro_horizons = NULL,
                                       excluded_records = NULL,
                                       age_record = NULL,
                                       age_value = NULL,
@@ -114,17 +119,9 @@ compute_synchronized_ages <- function(event_stats,
   # Get all unique horizon names from synchronicity results
   all_horizons <- unique(unlist(lapply(event_stats$processed, names)))
 
-  excl_parsed         <- parse_excluded_horizons(excluded_horizons, names(event_stats$processed))
+  excl_parsed         <- parse_excluded_horizons(nonsynchro_horizons, names(event_stats$processed))
   per_record_excluded <- excl_parsed$per_record_excluded
   global_excluded     <- excl_parsed$global_excluded
-
-  all_real_horizons <- unique(unlist(lapply(event_stats$processed, names)))
-
-  if (length(global_excluded) > 0) {
-    global_excluded <- unique(unlist(lapply(global_excluded, function(excl) {
-      c(excl, all_real_horizons[grepl(paste0("^", excl, "[a-zA-Z0-9]"), all_real_horizons)])
-    })))
-  }
 
   # Remove globally excluded horizons from all records' processed data immediately
   for (rec in names(event_stats$processed)) {
@@ -341,14 +338,17 @@ compute_synchronized_ages <- function(event_stats,
       method_h <- "mean"
     } else if (!is.null(names(method)) && group_name %in% names(method)) {
       method_h <- method[[group_name]]
-    } else if (length(method) == 1) {
+    } else if (is.null(names(method)) && length(method) == 1) {
+      # A single, unnamed method applies to every horizon.
       method_h <- method[1]
     } else {
+      # Named method vector: horizons it does not name fall back to "mean",
+      # regardless of how many entries it has.
       method_h <- "mean"
     }
 
     # Build per-record original age sample list (needed for most methods)
-    original_ages_list <- collect_horizon_samples(
+    original_ages_list <- get_horizon_posteriors(
       records_with_horizon, relevant_horizons_existing,
       event_stats$processed, per_record_excluded, global_excluded
     )
@@ -557,24 +557,33 @@ compute_synchronized_ages <- function(event_stats,
       # Shift samples by offset BEFORE combination
       samples_list_shifted <- lapply(samples_list, function(s) s - offset)
 
+      # Records excluded from the Bayesian combination (via excluded_records) are
+      # still plotted, but as dashed lines, so it stays visible which records
+      # actually contributed to the combined result.
+      excluded_names <- intersect(excluded_recs_h, names(original_ages_list))
+      excluded_samples_shifted <- lapply(original_ages_list[excluded_names],
+                                         function(s) s - offset)
+
       # Bayesian combination
-      comb <- combine_pdfs_mc(samples_list_shifted, return_full_pdf = TRUE)
+      comb <- bayesian_age_combination(samples_list_shifted, return_full_pdf = TRUE)
       mu_comb <- comb$mean
       sigma_comb <- comb$sd
 
       cat(sprintf("Adjusted age: %.1f +/- %.1f cal yrs BP\n\n",
                   mu_comb, sigma_comb))
 
-      # Store raw data for plotting by set_to_zero via plot_bayesian_combination()
+      # Store raw data for plotting by synchronize_ages via plot_bayesian_age_combination()
       bayesian_plot_data[[group_name]] <- list(
-        samples_list_shifted = samples_list_shifted,
-        combined_pdf_x       = comb$pdf$x,
-        combined_pdf_vals    = comb$pdf$pdf,
-        valid_records        = valid_records,
-        mu_comb              = mu_comb,
-        sigma_comb           = sigma_comb,
-        group_name           = group_name,
-        bayes_opts           = bayes_opts
+        samples_list_shifted     = samples_list_shifted,
+        combined_pdf_x           = comb$pdf$x,
+        combined_pdf_vals        = comb$pdf$pdf,
+        valid_records            = valid_records,
+        excluded_samples_shifted = excluded_samples_shifted,
+        excluded_records         = excluded_names,
+        mu_comb                  = mu_comb,
+        sigma_comb               = sigma_comb,
+        group_name               = group_name,
+        bayes_opts               = bayes_opts
       )
 
       # Store results (all records at this horizon receive the combined age,
@@ -744,9 +753,9 @@ compute_synchronized_ages <- function(event_stats,
   return(list(adjusted_ages = adjusted_ages, bayesian_plot_data = bayesian_plot_data))
 }
 
-#' Compute Synchronized Ages and Save Outputs (I/O Wrapper)
+#' Computes synchronized ages and plots Bayesian age combinations if used
 #'
-#' Calls \code{compute_synchronized_ages()} and saves Bayesian combination plots to PDF.
+#' Calls \code{compute_synchronized_ages()} and saves Bayesian combination plots to PDF if used as a matching method.
 #'
 #' @inheritParams compute_synchronized_ages
 #' @param output_dir Character string specifying the directory Bayesian plot PDFs will be
@@ -762,12 +771,11 @@ compute_synchronized_ages <- function(event_stats,
 #'   by \code{compute_synchronized_ages()$adjusted_ages}.
 #'
 #' @export
-set_to_zero <- function(event_stats,
-                        synchro_results,
+synchronize_ages <- function(event_stats,
                         output_dir = syncer_output_dir(),
                         method = NULL,
                         horizons = NULL,
-                        excluded_horizons = NULL,
+                        nonsynchro_horizons = NULL,
                         excluded_records = NULL,
                         age_record = NULL,
                         age_value = NULL,
@@ -781,10 +789,9 @@ set_to_zero <- function(event_stats,
 
   result <- compute_synchronized_ages(
     event_stats       = event_stats,
-    synchro_results   = synchro_results,
     method            = method,
     horizons          = horizons,
-    excluded_horizons = excluded_horizons,
+    nonsynchro_horizons = nonsynchro_horizons,
     excluded_records  = excluded_records,
     age_record        = age_record,
     age_value         = age_value,
@@ -798,16 +805,19 @@ set_to_zero <- function(event_stats,
   )
 
   for (pd in result$bayesian_plot_data) {
-    plot_bayesian_combination(pd, output_dir = output_dir)
+    plot_bayesian_age_combination(pd, output_dir = output_dir)
   }
 
   invisible(result$adjusted_ages)
 }
 
-#' Bayesian Combination of PDFs Using Monte Carlo Samples
+#' Bayesian combination of age probabilty density functions
 #'
 #' Combines multiple posterior age distributions using Bayesian product of probability
-#' density functions.
+#' density functions. Uses kernel density estimation to construct PDFs from samples, multiplies densities
+#'   in log-space to avoid underflow, normalizes using trapezoidal integration, and calculates
+#'   moment-matched statistics. This is the recommended method for combining ages from multiple
+#'   records with overlapping distributions.
 #'
 #' @param samples_list List of numeric vectors containing posterior samples from different records.
 #' @param return_full_pdf Logical indicating whether to return the full combined PDF
@@ -825,13 +835,8 @@ set_to_zero <- function(event_stats,
 #'           and \code{pdf} (density values)
 #'   }
 #'
-#' @details Uses kernel density estimation to construct PDFs from samples, multiplies densities
-#'   in log-space to avoid underflow, normalizes using trapezoidal integration, and calculates
-#'   moment-matched statistics. This is the recommended method for combining ages from multiple
-#'   records with overlapping distributions.
-#'
 #' @export
-combine_pdfs_mc <- function(samples_list,
+bayesian_age_combination <- function(samples_list,
                             return_full_pdf = FALSE,
                             n_grid = 2000,
                             bw = "nrd0") {

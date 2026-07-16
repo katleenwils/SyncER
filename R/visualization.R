@@ -1,8 +1,9 @@
-#' Create Comparison Histogram Visualizations
+#' Create synchronicity evaluation plots per pairwise comparison of records 
 #'
-#' Creates publication-quality comparison visualizations showing age probability distributions
-#' and log-ratio analysis for two records.
-#'
+#'Generates a two-panel visualization for a single event in two records: (1) histogram of log-ratio values with fitted normal
+#'   distribution & statistics, confidence intervals, and age difference thresholds; (2) age probability
+#'   density function (PDFs) for both records shown as histograms with frequency gradients.
+#'   
 #' @param Amin Numeric minimum age range for record A.
 #' @param Amax Numeric maximum age range for record A.
 #' @param Bmin Numeric minimum age range for record B.
@@ -14,9 +15,9 @@
 #' @param col1 Numeric vector of posterior age samples for record 1 (default: NULL).
 #' @param col2 Numeric vector of posterior age samples for record 2 (default: NULL).
 #' @param age_diff_log_bounds Two-element numeric vector specifying log-space age difference
-#'   thresholds (shown as green lines).
+#'   thresholds (shown as green lines on histogram plot).
 #' @param conf_log_bounds Two-element numeric vector specifying confidence interval bounds
-#'   in log-space (shown as blue shading).
+#'   in log-space (shown as blue shading on histogram plot).
 #' @param conf_level Numeric value specifying the confidence level used (e.g., 0.95).
 #' @param variant1 Optional character string specifying exact horizon name in record 1
 #'   (for generic horizon groups) (default: NULL).
@@ -37,12 +38,8 @@
 #' @return No return value. Creates a composite plot with two panels displayed in the current
 #'   graphics device.
 #'
-#' @details Generates a two-panel visualization: (1) histogram of log-ratios with fitted normal
-#'   distribution, confidence intervals, and age difference thresholds; (2) age probability
-#'   distributions for both records shown as histograms with frequency gradients.
-#'
 #' @export
-create_visualization <- function(Amin,
+plot_pairwise_synchronicity_evaluation <- function(Amin,
                                  Amax,
                                  Bmin,
                                  Bmax,
@@ -231,12 +228,12 @@ create_visualization <- function(Amin,
   invisible(list(log_ratio = p2, age_dist = p1))
 }
 
-#' Plot Synchronicity Comparison Figures
+#' Plot synchronicity evaluation plots per horizon across all records
 #'
 #' Produces per-horizon PDF files and console visualizations from a
-#' \code{compute_synchronicity()} result.
+#' \code{compute_synchronicity_values()} result.
 #'
-#' @param synchro_result The list returned by \code{compute_synchronicity()}.
+#' @param synchro_result The list returned by \code{compute_synchronicity_values()}.
 #' @param output_dir Character string specifying the directory the PDF files will be
 #'   saved to (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs}
 #'   folder in the working directory).
@@ -245,12 +242,12 @@ create_visualization <- function(Amin,
 #' @param synced Character string appended to PDF file names (default: "").
 #' @param fig_width Numeric width of output PDF figures in inches (default: 10).
 #' @param fig_height Numeric height of output PDF figures in inches (default: 8).
-#' @inheritParams create_visualization
+#' @inheritParams plot_pairwise_synchronicity_evaluation
 #'
 #' @return Invisibly returns \code{NULL}.
 #'
 #' @export
-plot_synchronicity <- function(synchro_result,
+plot_synchronicity_evaluation <- function(synchro_result,
                                output_dir = syncer_output_dir(),
                                offset     = bp_datum(),
                                synced     = "",
@@ -272,7 +269,7 @@ plot_synchronicity <- function(synchro_result,
     horizon_plots <- vector("list", nrow(horizon_rows))
     for (row_idx in seq_len(nrow(horizon_rows))) {
       row   <- horizon_rows[row_idx, ]
-      plots <- create_visualization(
+      plots <- plot_pairwise_synchronicity_evaluation(
         Amin = row$Amin - offset,
         Amax = row$Amax - offset,
         Bmin = row$Bmin - offset,
@@ -308,42 +305,56 @@ plot_synchronicity <- function(synchro_result,
   invisible(NULL)
 }
 
-#' Plot Bayesian Age Combination Results
+#' Plot Bayesian age combination results
 #'
-#' Draws the Bayesian posterior combination figure for one horizon group from
+#' Automatically draws the Bayesian posterior combination figure for one horizon group from
 #' the raw data returned by \code{compute_synchronized_ages()$bayesian_plot_data}.
-#' Prints to the active graphics device (console) and, when \code{output_dir} is
-#' supplied, also saves a PDF.
+#' Records that contributed to the combined result are drawn as solid lines;
+#' records excluded from the combination (via \code{excluded_records}) are 
+#' drawn as dashed lines and labelled "(excluded)" in the legend. Prints to the active graphics
+#' device (console) and, when \code{output_dir} is supplied, also saves a PDF.
 #'
 #' @param pd Named list for a single horizon, as stored in
 #'   \code{compute_synchronized_ages()$bayesian_plot_data}. Must contain elements
 #'   \code{samples_list_shifted}, \code{combined_pdf_x}, \code{combined_pdf_vals},
 #'   \code{valid_records}, \code{mu_comb}, \code{sigma_comb}, \code{group_name},
-#'   and \code{bayes_opts}.
+#'   and \code{bayes_opts}. May also contain \code{excluded_samples_shifted} and
+#'   \code{excluded_records} (shifted posterior samples and names of records
+#'   excluded from the combination); when absent, no excluded records are drawn.
 #' @param output_dir Character string; directory the PDF is saved to. Pass
 #'   \code{NULL} to skip PDF output.
 #'
 #' @return Invisibly returns \code{NULL}.
 #'
 #' @export
-plot_bayesian_combination <- function(pd, output_dir = NULL) {
+plot_bayesian_age_combination <- function(pd, output_dir = NULL) {
 
   samples_list_shifted <- pd$samples_list_shifted
   combined_pdf_x       <- pd$combined_pdf_x
   combined_pdf_vals    <- pd$combined_pdf_vals
   valid_records        <- pd$valid_records
+  excluded_samples     <- pd$excluded_samples_shifted
+  excluded_records     <- pd$excluded_records
   mu_comb              <- pd$mu_comb
   sigma_comb           <- pd$sigma_comb
   group_name           <- pd$group_name
   bayes_opts           <- pd$bayes_opts
 
-  all_samples <- unlist(samples_list_shifted)
+  # Older plot data may not carry excluded records; treat as none.
+  if (is.null(excluded_samples)) excluded_samples <- list()
+  if (is.null(excluded_records)) excluded_records <- character(0)
+
+  used_n <- length(samples_list_shifted)
+  excl_n <- length(excluded_samples)
+
+  all_samples <- unlist(c(samples_list_shifted, excluded_samples))
   xrange <- range(all_samples,
                   mu_comb + c(-bayes_opts$plot_range_sigma * sigma_comb,
                                bayes_opts$plot_range_sigma * sigma_comb))
 
   max_density <- max(
-    vapply(samples_list_shifted, function(s) max(density(s)$y), numeric(1)),
+    vapply(c(samples_list_shifted, excluded_samples),
+           function(s) max(density(s)$y), numeric(1)),
     max(combined_pdf_vals)
   )
 
@@ -353,16 +364,29 @@ plot_bayesian_combination <- function(pd, output_dir = NULL) {
          xlab = "Age (cal yrs BP)", ylab = "Density",
          main = paste("Bayesian Combination for", group_name))
 
-    cols <- rainbow(length(samples_list_shifted))
-    for (i in seq_along(samples_list_shifted)) {
+    cols <- rainbow(used_n + excl_n)
+
+    # Records used in the combination: solid lines.
+    for (i in seq_len(used_n)) {
       d <- density(samples_list_shifted[[i]])
-      lines(d$x, d$y, col = cols[i], lwd = bayes_opts$posterior_lwd)
+      lines(d$x, d$y, col = cols[i], lwd = bayes_opts$posterior_lwd, lty = 1)
     }
+    # Records excluded from the combination: dashed lines.
+    for (j in seq_len(excl_n)) {
+      d <- density(excluded_samples[[j]])
+      lines(d$x, d$y, col = cols[used_n + j], lwd = bayes_opts$posterior_lwd, lty = 2)
+    }
+
     lines(combined_pdf_x, combined_pdf_vals, col = "black", lwd = bayes_opts$combined_lwd)
+
     legend(bayes_opts$legend_pos,
-           legend = c(valid_records, "Bayesian combined"),
+           legend = c(valid_records,
+                      if (excl_n > 0) paste0(excluded_records, " (excluded)"),
+                      "Bayesian combined"),
            col    = c(cols, "black"),
-           lwd    = c(rep(bayes_opts$posterior_lwd, length(cols)), bayes_opts$combined_lwd))
+           lwd    = c(rep(bayes_opts$posterior_lwd, used_n + excl_n),
+                      bayes_opts$combined_lwd),
+           lty    = c(rep(1, used_n), rep(2, excl_n), 1))
   }
 
   draw_plot()

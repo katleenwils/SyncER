@@ -1,13 +1,12 @@
-#' Compute Synchronicity of Event Deposits
+#' Compute synchronicity score and precision for considered event deposits
 #'
-#' Pure-compute core: performs all pairwise comparisons and overall synchronicity
-#' calculations without any file I/O or plotting.
+#' Performs all pairwise comparisons and overall calculations of synchronicity score and synchronicity precision.
 #'
 #' @param event_stats Output from \code{process_event_ages()}.
 #' @param event_names Character vector of event names to test.
 #' @param confidence_level Numeric value or named vector giving the confidence level (a ratio)
 #'   at which synchronicity is tested (default: \code{0.95}). Only correlations whose
-#'   synchronicity score exceeds this value pass the test -- e.g. with
+#'   synchronicity score exceeds this value pass the test: e.g. with
 #'   \code{confidence_level = 0.95}, only pairs scoring higher than 0.95 are counted as passes.
 #'   Supply a named vector to use different confidence levels per horizon.
 #' @param age_difference Numeric value or named vector giving the maximum age difference between
@@ -44,7 +43,7 @@
 #'   }
 #'
 #' @export
-compute_synchronicity <- function(event_stats,
+compute_synchronicity_values <- function(event_stats,
                                   event_names,
                                   confidence_level = 0.95,
                                   age_difference = 0.05,
@@ -109,7 +108,7 @@ compute_synchronicity <- function(event_stats,
       relevant_record_names <- names(records_variants)
       if (length(relevant_record_names) == 0) next
 
-      th <- resolve_horizon_thresholds(
+      th <- get_horizon_thresholds(
         event_base, confidence_level, age_difference,
         event_stats$summaries[relevant_record_names]
       )
@@ -149,7 +148,7 @@ compute_synchronicity <- function(event_stats,
                 pair_samples[[rec_j]] <- event_stats$processed[[rec_j]][[var_j]]
 
                 if (!is.null(pair_samples[[rec_i]]) && !is.null(pair_samples[[rec_j]])) {
-                  pair_result <- calculate_overall_synchronicity(
+                  pair_result <- compute_overall_synchronicity(
                     pair_samples, th$conf_level_h, th$age_diff_log_bounds,
                     n_samples = n_samples, seed = seed
                   )
@@ -191,7 +190,7 @@ compute_synchronicity <- function(event_stats,
             }
 
             if (combo_valid && length(combo_samples_list) > 2) {
-              combo_result <- calculate_overall_synchronicity(
+              combo_result <- compute_overall_synchronicity(
                 combo_samples_list, th$conf_level_h, th$age_diff_log_bounds,
                 n_samples = n_samples, seed = seed
               )
@@ -237,7 +236,7 @@ compute_synchronicity <- function(event_stats,
         ]
         relevant_record_names <- names(relevant_records)
 
-        th <- resolve_horizon_thresholds(
+        th <- get_horizon_thresholds(
           horizon, confidence_level, age_difference,
           event_stats$summaries[relevant_record_names]
         )
@@ -265,7 +264,7 @@ compute_synchronicity <- function(event_stats,
         }
 
         if (length(overall_samples_list) >= 2) {
-          overall_result <- calculate_overall_synchronicity(
+          overall_result <- compute_overall_synchronicity(
             overall_samples_list, th$conf_level_h, th$age_diff_log_bounds,
             n_samples = n_samples, seed = seed
           )
@@ -332,13 +331,13 @@ compute_synchronicity <- function(event_stats,
                summary = summary_out))
 }
 
-#' Write and Plot Synchronicity Results
+#' Write and plot synchronicity testing results for evaluation
 #'
-#' I/O counterpart to \code{compute_synchronicity()}: saves a CSV of horizon statistics,
-#' prints a summary to the console, and produces per-horizon PDF visualizations.
-#' Call \code{compute_synchronicity()} first and pass its result here.
+#' Saves a CSV of horizon statistics, prints a summary to the console, 
+#' and produces per-horizon visualizations of the age PDFs and log-ratio distributions.
+#' Call \code{compute_synchronicity_values()} first and pass its result here.
 #'
-#' @param synchro_result The list returned by \code{compute_synchronicity()}.
+#' @param synchro_result The list returned by \code{compute_synchronicity_values()}.
 #' @param event_names Character vector of event names being tested. Falls back to
 #'   naming the CSV file when \code{group_name} is not supplied.
 #' @param output_dir Character string specifying the directory the statistics CSV will be
@@ -352,11 +351,11 @@ compute_synchronicity <- function(event_stats,
 #' @param synced Character string appended to output filenames (default: \code{""}).
 #' @param isochron Logical; when \code{TRUE} a warning is shown if >10\% of comparisons
 #'   fail, and the CSV file is named \code{"isochron"} by default (default: \code{FALSE}).
-#' @param offset Numeric offset correction value passed to \code{plot_synchronicity()}
+#' @param offset Numeric offset correction value passed to \code{plot_synchronicity_evaluation()}
 #'   (default: \code{bp_datum()}, i.e. the current year minus 1950).
 #' @param fig_width Numeric width of output PDF figures in inches (default: 10).
 #' @param fig_height Numeric height of output PDF figures in inches (default: 8).
-#' @inheritParams create_visualization
+#' @inheritParams plot_pairwise_synchronicity_evaluation
 #'
 #' @return Invisibly returns \code{synchro_result} unchanged.
 #'
@@ -406,7 +405,7 @@ verify_synchronicity <- function(synchro_result,
   }
 
   # Generate PDFs and console plots
-  plot_synchronicity(
+  plot_synchronicity_evaluation(
     synchro_result = synchro,
     output_dir     = output_dir,
     offset         = offset,
@@ -419,12 +418,16 @@ verify_synchronicity <- function(synchro_result,
   invisible(synchro_result)
 }
 
-#' Calculate Validation Thresholds from Synchronized Data
+#' Calculate synchronicity validation thresholds based on isochron ages and errors
 #'
 #' Calculates empirically-based validation thresholds and confidence levels from synchronized
-#' age data for use in subsequent synchronicity testing.
+#' age data for use in subsequent synchronicity testing. Calculates the coefficient of variation (CV = sigma/mu) from synchronized ages,
+#'   multiplies by user-specified sigma values to generate age difference thresholds, and
+#'   converts sigma values to confidence levels using the standard normal distribution.
+#'   The age offset is added before calculating CV to ensure consistency accross calculations.
+#'   These thresholds can be directly used in \code{verify_synchronicity()} for synchronicity testing.
 #'
-#' @param adjusted_ages Output from \code{set_to_zero()} containing synchronized ages and errors.
+#' @param adjusted_ages Output from \code{synchronize_ages()} containing synchronized ages and errors.
 #' @param sigma_multiplier Numeric value or named vector giving the user-defined confidence
 #'   level on the age interval, expressed as a standard-deviation multiplier (default: \code{2},
 #'   i.e. ~95.4\% confidence on the age; use \code{1} for ~68.3\% or \code{3} for ~99.7\%). This
@@ -432,9 +435,8 @@ verify_synchronicity <- function(synchro_result,
 #'   \code{age_difference} values are reasonable when testing nearby unknown deposits. Supply a
 #'   named vector to use a different multiplier per horizon.
 #' @param age_offset Numeric offset value that was added to ages to avoid negative values
-#'   (default: \code{bp_datum()}, i.e. the current year minus 1950). This offset is subtracted
-#'   before calculating the coefficient of variation to ensure CV is based on true ages, not
-#'   offset ages.
+#'   (default: \code{bp_datum()}, i.e. the current year minus 1950). This offset is added
+#'   before calculating the coefficient of variation to ensure CV is based on offset ages.
 #'
 #' @return Named list containing:
 #'   \itemize{
@@ -447,25 +449,19 @@ verify_synchronicity <- function(synchro_result,
 #'     \item \code{age_offset}: The age offset value used during threshold calculation
 #'   }
 #'
-#' @details Calculates the coefficient of variation (CV = sigma/mu) from synchronized ages,
-#'   multiplies by user-specified sigma values to generate age difference thresholds, and
-#'   converts sigma values to confidence levels using the standard normal distribution.
-#'   The age offset is removed before calculating CV to ensure it reflects true age variability.
-#'   These thresholds can be directly used in \code{verify_synchronicity()} for validation testing.
-#'
 #' @examples
 #' \dontrun{
 #' # Single sigma for all horizons
-#' thresholds <- calculate_validation_thresholds(adjusted_ages, sigma_multiplier = 2)
+#' thresholds <- compute_isochron_thresholds(adjusted_ages, sigma_multiplier = 2)
 #'
 #' # Different sigma per horizon
-#' thresholds <- calculate_validation_thresholds(
+#' thresholds <- compute_isochron_thresholds(
 #'   adjusted_ages,
 #'   sigma_multiplier = c(horizon1 = 2, horizon2 = 1, horizon3 = 1.5)
 #' )
 #'
 #' # With custom age offset
-#' thresholds <- calculate_validation_thresholds(
+#' thresholds <- compute_isochron_thresholds(
 #'   adjusted_ages,
 #'   sigma_multiplier = 2,
 #'   age_offset = 100
@@ -481,7 +477,7 @@ verify_synchronicity <- function(synchro_result,
 #' }
 #'
 #' @export
-calculate_validation_thresholds <- function(adjusted_ages,
+compute_isochron_thresholds <- function(adjusted_ages,
                                             sigma_multiplier = 2,
                                             age_offset = bp_datum()) {
   
@@ -506,11 +502,10 @@ calculate_validation_thresholds <- function(adjusted_ages,
     }
     
     # adjusted_ages stores ages relative to the offset-subtracted baseline.
-    # Add the offset back to recover the true age (in cal yrs BP) before computing CV.
-    true_age <- x$adjusted_age[1] + age_offset
+    offset_age <- x$adjusted_age[1] + age_offset
     
     # CV based on true age, not offset age
-    x$adjusted_error[1] / abs(true_age)
+    x$adjusted_error[1] / abs(offset_age)
   }, numeric(1))
   
   # Determine sigma multiplier for each horizon
@@ -556,12 +551,12 @@ calculate_validation_thresholds <- function(adjusted_ages,
   ))
 }
 
-#' Print Validation Thresholds Summary
+#' Print summary of isochron-based validation thresholds
 #'
 #' Prints a formatted summary table of the thresholds returned by
-#' \code{calculate_validation_thresholds()}.
+#' \code{compute_isochron_thresholds()}.
 #'
-#' @param thresholds Output list from \code{calculate_validation_thresholds()}.
+#' @param thresholds Output list from \code{compute_isochron_thresholds()}.
 #'
 #' @return Invisibly returns \code{thresholds} (unchanged).
 #'

@@ -1,13 +1,11 @@
-#' Check Distribution Shape via Skewness and Kurtosis Z-Tests
+#' Check log-ratio distribution shape via skewness and kurtosis z-tests
 #'
 #' Flags a numeric vector as approximately normal-shaped using the standard
-#' errors of skewness and kurtosis (Tabachnick & Fidell rule of thumb):
+#' errors of skewness and kurtosis:
 #'   z_skewness = skewness / sqrt(6 / N)
 #'   z_kurtosis = excess_kurtosis / sqrt(24 / N)
 #' If either |z| exceeds the critical value, the distribution is flagged
-#' non-normal on that characteristic. Unlike Shapiro-Wilk, this still uses N
-#' explicitly in its standard error, but is the conventional approach for
-#' assessing skew/peakedness rather than overall distributional fit.
+#' non-normal on that characteristic.
 #'
 #' @param x Numeric vector to test.
 #' @param critical_z Critical z value (default 1.96, the .05 significance level;
@@ -34,12 +32,11 @@ shape_ok <- function(x, critical_z = 1.96) {
   abs(z_skewness) <= critical_z && abs(z_kurtosis) <= critical_z
 }
 
-#' Current BP Datum (Year - 1950)
+#' Determine current BP datum (year - 1950)
 #'
 #' Returns the number of years elapsed since the radiocarbon BP datum (1950),
 #' calculated from the current system date. Used as the default \code{offset}/
-#' \code{age_offset} argument throughout \emph{SyncER} instead of a hardcoded
-#' value, so the default stays correct in future years.
+#' \code{age_offset} argument throughout \emph{SyncER} to avoid negative age values.
 #'
 #' @return Integer: current year minus 1950.
 #'
@@ -51,7 +48,7 @@ bp_datum <- function() as.integer(format(Sys.Date(), "%Y")) - 1950L
 #' Constructs a named character vector mapping each individual horizon name to
 #' its group name, based on the \code{horizon_groups} list supplied by the user.
 #'
-#' @param horizon_groups Named list as passed to \code{compute_synchronicity()} or
+#' @param horizon_groups Named list as passed to \code{compute_synchronicity_values()} or
 #'   \code{compute_synchronized_ages()}, or \code{NULL}.
 #'
 #' @return Named character vector (\code{group_of}) where each element name is a

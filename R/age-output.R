@@ -1,12 +1,11 @@
-#' Read Raw Bacon Output Files
+#' Read Bacon/Plum age-depth modelling output files
 #'
-#' Reads raw lines from Bacon \code{.out} files for a set of records into a named list.
-#' This is the I/O counterpart to \code{extract_event_ages()}: call this first to obtain
-#' raw data, then pass the result to \code{extract_event_ages()} for computation, and
-#' finally call \code{export_to_excel()} to save the processed ages.
+#' Reads raw lines from \emph{rbacon}/\emph{rplum} \code{.out} files for a set of records into a named list.
+#' Call this function to obtain raw age data, then pass the result to \code{compute_event_ages()} for computation of event ages, 
+#' and finally call \code{write_age_output_data()} to save the processed ages in your folder.
 #'
 #' @param folder_path Character string giving the parent directory that contains
-#'   the per-record Bacon output sub-folders (default: \code{"."}, i.e. the working
+#'   the per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: \code{"."}, i.e. the working
 #'   directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
 #'   and \code{age_model_input()}).
 #' @param synced Character string suffix used to identify synchronized output folders
@@ -14,17 +13,17 @@
 #'   ending with that suffix).
 #' @param max_depths Named numeric vector of original core depths (cm), used only for
 #'   progress reporting. Pass \code{NULL} to skip depth messages.
-#' @param excluded_depths Optional named list of excluded depth intervals per record,
+#' @param instantaneous_event_depths Optional named list of excluded depth intervals per record,
 #'   used only for progress reporting.
 #'
 #' @return Named list of character vectors (one element per folder / record), where each
 #'   element contains the raw text lines of the corresponding \code{.out} file.
 #'
 #' @export
-read_bacon_output <- function(folder_path = ".",
+read_age_model_output <- function(folder_path = ".",
                               synced = "",
                               max_depths = NULL,
-                              excluded_depths = NULL) {
+                              instantaneous_event_depths = NULL) {
 
   # Discover valid folders based on synced status
   all_folders <- list.dirs(folder_path, recursive = FALSE, full.names = FALSE)
@@ -72,7 +71,7 @@ read_bacon_output <- function(folder_path = ".",
 
     if (!is.null(max_depths)) {
       max_depth_original <- max_depths[record_name_local]
-      exclusions_local   <- if (!is.null(excluded_depths)) excluded_depths[[record_name_local]] else NULL
+      exclusions_local   <- if (!is.null(instantaneous_event_depths)) instantaneous_event_depths[[record_name_local]] else NULL
 
       cat("  Original max depth:", max_depth_original, "cm\n")
 
@@ -92,37 +91,118 @@ read_bacon_output <- function(folder_path = ".",
   return(raw_out_data)
 }
 
-#' Compute Event Ages from Raw Bacon Output Lines
+#' Prepare age data for log-ratio transformation and calculate basic statistics
 #'
-#' Performs all age interpolation and computation logic from raw Bacon .out file content,
-#' without any file reading or writing.
+#' Extracts event-specific age columns from \emph{rbacon}/\emph{rplum} output, applies offset correction,
+#' and calculates summary statistics. Filters columns matching event deposit patterns, 
+#' applies offset to avoid negative ages for post-1950 deposits, and ensures the record top is at age 0. 
+#' This function takes the direct output from \code{load_event_ages()} and processes it in memory.
+#'
+#' @param out_data Named list of data frames or data.tables containing age data
+#'   (output from \code{load_event_ages()}).
+#' @param event_deposits Character vector of event deposit names to extract (typically
+#'   \code{isochrons} or \code{test_events}). Columns whose name starts with any of these names
+#'   are selected.
+#' @param offset Numeric value added to every age so that the age reference point becomes, for
+#'   example, the year the (most recent) records were retrieved rather than 1950 AD (default:
+#'   \code{bp_datum()}, i.e. the current year minus 1950). Because the synchronicity test uses
+#'   log-transformations, the age dataset may not contain zero or negative values. Set it manually 
+#'   if you want a different reference point, but use the \emph{same} offset consistently throughout the workflow.
+#'
+#' @return A named list with two elements:
+#'   \itemize{
+#'     \item \code{processed}: List of data frames with offset-corrected ages for each record
+#'     \item \code{summaries}: List of summary data frames containing min, max, mean, and
+#'           sd (sigma) for each event column
+#'   }
+#'
+#' @importFrom magrittr %>%
+#' @export
+process_event_ages <- function(out_data,
+                               event_deposits,
+                               offset = bp_datum()) {
+  
+  # Validate input
+  if (!is.list(out_data) || length(out_data) == 0) {
+    stop("out_data must be a non-empty list (output from load_event_ages)")
+  }
+  
+  # Create regex pattern to match event deposit columns
+  # Example: if event_deposits = c("tephra", "flood"), matches "tephra1", "flood_120", etc.
+  pattern_regex <- paste0("^(", paste(event_deposits, collapse = "|"), ")")
+  
+  # Process each record: select matching columns and apply offset
+  processed <- lapply(out_data, function(.x) {
+    # Convert to data frame if not already
+    if (!is.data.frame(.x)) {
+      .x <- as.data.frame(.x)
+    }
+    
+    # Select columns matching event deposits
+    matched_cols <- grep(pattern_regex, names(.x), value = TRUE)
+    
+    if (length(matched_cols) == 0) {
+      warning("No matching event columns found in this record")
+      return(data.frame())
+    }
+    
+    # Select and apply offset
+    .x[, matched_cols, drop = FALSE] %>%
+      dplyr::mutate(dplyr::across(dplyr::everything(), ~ . + offset))  # Offset adjusts for modern ages
+  })
+  
+  # Calculate summary statistics for each column in each record
+  summaries <- lapply(processed, function(.x) {
+    if (ncol(.x) == 0) {
+      return(data.frame())
+    }
+    
+    dplyr::summarise(.x,
+                     dplyr::across(dplyr::everything(),
+                                   list(
+                                     min = ~ min(.x, na.rm = TRUE),
+                                     max = ~ max(.x, na.rm = TRUE),
+                                     mean = ~ mean(.x, na.rm = TRUE),
+                                     sigma = ~ sd(.x, na.rm = TRUE)
+                                   )
+                     )
+    )
+  })
+  
+  return(list(processed = processed, summaries = summaries))
+}
+
+#' Interpolate event ages from MCMC runs of Raw Bacon/Plum output files
+#'
+#' Performs all age interpolation and computation logic from raw \emph{rbacon}/\emph{rplum} .out file content.
 #'
 #' @param raw_out_data Named list of character vectors (raw lines from each .out file),
 #'   one element per record folder.
 #' @param record_data Named list of data frames representing each record's metadata
-#'   (output from \code{load_excel_data()}).
+#'   (output from \code{read_record_data()}).
 #' @param event_types Character vector of all event type names present in your dataset.
 #' @param max_depths Named vector containing the depths to which the age models are calculated for each record.
 #' @param isochrons Character vector of deposit names that are known to be synchronous.
 #' @param test_horizons Character vector of event deposits for which synchronicity should be tested.
-#' @param excluded_depths Optional named list of excluded depth intervals per record.
-#' @param thick The Bacon section thickness; single numeric, named list per record, or NULL
+#' @param instantaneous_event_depths Optional named list of depth intervals classified as instantaneous deposits per record
+#' that should not be considered for event-free depths.
+#' @param thick The \emph{rbacon}/\emph{rplum} section thickness; single numeric, named list per record, or NULL
 #'   (default), in which case it is derived per record from the model as
 #'   \code{max_depths[record] / (n_cols - 3)}, i.e. the modelled depth range divided
-#'   by the number of Bacon sections.
+#'   by the number of \emph{rbacon}/\emph{rplum} sections.
 #' @param synced Character string suffix to identify synchronized folders (default: "").
 #'
 #' @return Named list of data frames, one per processed record folder, containing
 #'   depth columns plus one column per event with interpolated ages.
 #'
 #' @export
-extract_event_ages <- function(raw_out_data,
+compute_event_ages <- function(raw_out_data,
                                record_data,
                                event_types,
                                max_depths,
                                isochrons,
                                test_horizons,
-                               excluded_depths = NULL,
+                               instantaneous_event_depths = NULL,
                                thick = NULL,
                                synced = "") {
 
@@ -135,7 +215,7 @@ extract_event_ages <- function(raw_out_data,
     }
 
     if (length(exclusions) %% 2 != 0) {
-      stop("excluded_depths must contain pairs of values (top, bottom, top, bottom, ...)")
+      stop("instantaneous_event_depths must contain pairs of values (top, bottom, top, bottom, ...)")
     }
 
     exclusion_matrix <- matrix(exclusions, ncol = 2, byrow = TRUE)
@@ -166,7 +246,7 @@ extract_event_ages <- function(raw_out_data,
     }
 
     record_df  <- record_data[[record_name]]
-    exclusions <- if (!is.null(excluded_depths)) excluded_depths[[record_name]] else NULL
+    exclusions <- if (!is.null(instantaneous_event_depths)) instantaneous_event_depths[[record_name]] else NULL
 
     # Resolve the thickness multiplier for this record. When the caller supplies
     # `thick` we honour it; otherwise it is derived from the model itself below,
@@ -199,7 +279,7 @@ extract_event_ages <- function(raw_out_data,
     max_depth_original <- max_depths[record_name]
 
     # Derive the section thickness from the model when the caller did not supply
-    # one. A Bacon .out for this record has (n_cols - 3) depth sections spanning
+    # one. A Bacon/Plum .out for this record has (n_cols - 3) depth sections spanning
     # 0..max_depth, so each section is max_depth / (n_cols - 3) deep. This replaces
     # the previous heuristic, which read the last number of the folder name (e.g.
     # "core1" -> 1) and thus used the core index as the thickness -- collapsing
@@ -211,9 +291,6 @@ extract_event_ages <- function(raw_out_data,
       }
       thick_value <- max_depth_original / (n_cols - 3)
     }
-
-    # Calculate total excluded depth
-    total_excluded <- calculate_excluded_depth(max_depth_original, exclusions)
 
     # Convert column names to actual depths
     new_headers <- (1:(n_cols - 1)) * thick_value
@@ -291,19 +368,19 @@ extract_event_ages <- function(raw_out_data,
   return(out_data)
 }
 
-#' Extract Event Ages from Bacon Output Files
+#' Load and store event ages from Bacon/Plum output files
 #'
-#' I/O wrapper that reads Bacon \code{.out} files and returns a named list of
-#' processed event ages. Combines \code{read_bacon_output()} and
-#' \code{extract_event_ages()} into a single call. When \code{reload_existing}
-#' is \code{TRUE} the previously exported Excel file is returned instead.
+#' Wrapper function that reads \emph{rbacon}/\emph{rplum} \code{.out} files and returns a named list of
+#' processed event ages. Combines \code{read_age_model_output()} and
+#' \code{compute_event_ages()} into a single call. When \code{reload_existing}
+#' is \code{TRUE}, the previously exported Excel file is returned instead.
 #'
 #' @param folder_path Character string giving the parent directory that contains
-#'   per-record Bacon output sub-folders (default: \code{"."}, i.e. the working
+#'   per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: \code{"."}, i.e. the working
 #'   directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
 #'   and \code{age_model_input()}). Ignored when \code{reload_existing = TRUE}.
 #' @param record_data Named list of data frames representing each record's
-#'   metadata (output from \code{load_excel_data()}).
+#'   metadata (output from \code{read_record_data()}).
 #' @param event_types Character vector of all event type names present in your
 #'   dataset.
 #' @param max_depths Named numeric vector of maximum depths per record.
@@ -314,8 +391,9 @@ extract_event_ages <- function(raw_out_data,
 #'   (default: \code{""}).
 #' @param reload_existing Logical; when \code{TRUE} reads from an already-exported
 #'   Excel file instead of re-processing \code{.out} files (default: \code{FALSE}).
-#' @param excluded_depths Optional named list of excluded depth intervals per record.
-#' @param thick The Bacon section thickness used during age-depth modelling;
+#' @param instantaneous_event_depths Optional named list of depth intervals classified as instantaneous deposits per record
+#' that should not be considered for event-free depths.
+#' @param thick The \emph{rbacon}/\emph{rplum} section thickness used during age-depth modelling;
 #'   single numeric, named list per record, or \code{NULL} (default), in which case
 #'   it is derived per record from the model as \code{max_depths[record] / (n_cols - 3)}.
 #' @param output_dir Character string specifying where the previously-exported
@@ -327,7 +405,7 @@ extract_event_ages <- function(raw_out_data,
 #'   columns plus one column per event with interpolated ages.
 #'
 #' @export
-extract_ages <- function(folder_path = ".",
+load_event_ages <- function(folder_path = ".",
                          record_data,
                          event_types,
                          max_depths,
@@ -335,30 +413,60 @@ extract_ages <- function(folder_path = ".",
                          test_horizons,
                          synced = "",
                          reload_existing = FALSE,
-                         excluded_depths = NULL,
+                         instantaneous_event_depths = NULL,
                          thick = NULL,
                          output_dir = syncer_output_dir()) {
 
   if (reload_existing) {
-    return(read_from_excel(output_dir, synced = synced))
+    return(read_age_data(output_dir, synced = synced))
   }
 
-  raw_out_data <- read_bacon_output(
+  raw_out_data <- read_age_model_output(
     folder_path     = folder_path,
     synced          = synced,
     max_depths      = max_depths,
-    excluded_depths = excluded_depths
+    instantaneous_event_depths = instantaneous_event_depths
   )
 
-  extract_event_ages(
+  compute_event_ages(
     raw_out_data    = raw_out_data,
     record_data     = record_data,
     event_types     = event_types,
     max_depths      = max_depths,
     isochrons       = isochrons,
     test_horizons   = test_horizons,
-    excluded_depths = excluded_depths,
+    instantaneous_event_depths = instantaneous_event_depths,
     thick           = thick,
     synced          = synced
   )
+}
+
+#' Write age data (including event ages) into an Excel file
+#'
+#' Each record age information (including event ages) is written to a separate sheet in the output Excel file, with
+#'   sheet names matching the list element names, and each row represents a single MCMC simulation.
+#'
+#' @param out_data Named list of data frames where each element will become a separate worksheet.
+#' @param folder_path Character string specifying the location where the Excel file should be saved
+#'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).
+#' @param synced Character string suffix for the output filename (default: "");
+#'   use "_synced" for synchronized data.
+#'
+#' @return No return value. Writes an Excel file and prints a success message with the file path.
+#'
+#' @importFrom writexl write_xlsx
+#' @export
+write_age_output_data <- function(out_data,
+                            folder_path = syncer_output_dir(),
+                            synced="") {
+
+  # Convert all list elements to data frames
+  records_list <- lapply(out_data, as.data.frame)
+
+  # Construct output filename
+  output_file <- file.path(folder_path, paste0("out_data_ages", synced, ".xlsx"))
+
+  # Write to Excel (one sheet per record)
+  writexl::write_xlsx(records_list, path = output_file)
+  cat("Data successfully exported to:", output_file, "\n")
 }

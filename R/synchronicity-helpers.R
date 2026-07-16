@@ -1,4 +1,4 @@
-#' Resolve Per-Horizon Confidence Level, Age Difference, and Log Bounds
+#' Retrieve confidence level, age difference, and log-ratio bounds per horizon
 #'
 #' Extracts \code{conf_level_h} and \code{age_diff_h} for a given horizon from
 #' scalar or named-vector inputs, converts an absolute age difference (>= 1) to a
@@ -21,7 +21,7 @@
 #'   }
 #'
 #' @keywords internal
-resolve_horizon_thresholds <- function(horizon, confidence_level, age_difference, summaries) {
+get_horizon_thresholds <- function(horizon, confidence_level, age_difference, summaries) {
 
   if (!is.null(names(confidence_level)) && horizon %in% names(confidence_level)) {
     conf_level_h <- confidence_level[[horizon]]
@@ -62,12 +62,12 @@ resolve_horizon_thresholds <- function(horizon, confidence_level, age_difference
   list(conf_level_h = conf_level_h, age_diff_h = age_diff_h, age_diff_log_bounds = c(-t, t))
 }
 
-#' Compute a Single Pairwise Log-Ratio Comparison
+#' Compute a log-ratio values for a single pair-wise comparison
 #'
-#' Core computation for one record pair within \code{compute_synchronicity()}.
+#' Core computation for one record pair within \code{compute_synchronicity_values()}.
 #' Draws \code{n_samples} log-ratios, scores them against the age-difference bounds,
 #' assesses distribution shape, estimates precision, and assembles the statistics and
-#' visualisation rows.
+#' visualization rows.
 #'
 #' @param col1 Numeric vector of posterior age samples for record \code{rec_i}.
 #' @param col2 Numeric vector of posterior age samples for record \code{rec_j}.
@@ -77,7 +77,7 @@ resolve_horizon_thresholds <- function(horizon, confidence_level, age_difference
 #'   comparisons; \code{variant1} in the stats row is then set to \code{NA}.
 #' @param var_j Column name used from record j. Same semantics as \code{var_i}.
 #' @param horizon Character string identifying the event/horizon being compared.
-#' @param thresholds Named list as returned by \code{resolve_horizon_thresholds()}.
+#' @param thresholds Named list as returned by \code{get_horizon_thresholds()}.
 #' @param summaries Named list of per-record summary data frames from
 #'   \code{process_event_ages()$summaries} (for min/max in the viz row).
 #' @param n_samples Integer; number of Monte Carlo samples (default: 10000).
@@ -105,7 +105,7 @@ compare_pair <- function(col1, col2,
 
   qa        <- assess_lr(ABlr)
   precision <- if (qa$ok) {
-    t_needed <- find_precision_threshold(ABlr, conf_level_h)
+    t_needed <- compute_minimal_precision_threshold(ABlr, conf_level_h)
     if (!is.na(t_needed)) exp(t_needed) - 1 else NA_real_
   } else {
     NA_real_
@@ -160,13 +160,13 @@ compare_pair <- function(col1, col2,
        score = score, precision = precision, stats_row = stats_row, viz_row = viz_row)
 }
 
-#' Parse Excluded Horizons Into Per-Record and Global Exclusion Lists
+#' Seperate per-record excluded horizons from globally excluded horizons
 #'
-#' Normalises the \code{excluded_horizons} argument into two tidy outputs used
+#' Normalizes the \code{nonsynchro_horizons} argument into two tidy outputs used
 #' downstream to filter age columns. Accepts a named list (CASE 1), a named
 #' character vector (CASE 2), or an unnamed character vector (global exclusion).
 #'
-#' @param excluded_horizons Named list, named character vector, or unnamed character
+#' @param nonsynchro_horizons Named list, named character vector, or unnamed character
 #'   vector. Named entries are matched against \code{all_records} by substring;
 #'   unnamed entries (or elements keyed \code{"global"}) are global.
 #' @param all_records Character vector of all record names.
@@ -178,12 +178,12 @@ compare_pair <- function(col1, col2,
 #'   }
 #'
 #' @keywords internal
-parse_excluded_horizons <- function(excluded_horizons, all_records) {
+parse_excluded_horizons <- function(nonsynchro_horizons, all_records) {
 
   per_record_excluded <- list()
   global_excluded <- character(0)
 
-  if (is.null(excluded_horizons))
+  if (is.null(nonsynchro_horizons))
     return(list(per_record_excluded = per_record_excluded, global_excluded = global_excluded))
 
   add_per_record <- function(key, vals) {
@@ -199,9 +199,9 @@ parse_excluded_horizons <- function(excluded_horizons, all_records) {
     }
   }
 
-  if (is.list(excluded_horizons)) {
-    for (key in names(excluded_horizons)) {
-      vals <- as.character(excluded_horizons[[key]])
+  if (is.list(nonsynchro_horizons)) {
+    for (key in names(nonsynchro_horizons)) {
+      vals <- as.character(nonsynchro_horizons[[key]])
       if (is.na(key) || !nzchar(key) || key == "global") {
         global_excluded <- c(global_excluded, vals)
       } else {
@@ -209,8 +209,8 @@ parse_excluded_horizons <- function(excluded_horizons, all_records) {
       }
     }
   } else {
-    named_keys <- names(excluded_horizons)
-    named_vals <- as.character(excluded_horizons)
+    named_keys <- names(nonsynchro_horizons)
+    named_vals <- as.character(nonsynchro_horizons)
     if (!is.null(named_keys)) {
       for (i in seq_along(named_keys)) {
         if (nzchar(named_keys[i])) {
@@ -227,7 +227,7 @@ parse_excluded_horizons <- function(excluded_horizons, all_records) {
   list(per_record_excluded = per_record_excluded, global_excluded = global_excluded)
 }
 
-#' Collect Posterior Age Samples for a Horizon Group Across Records
+#' Retreve posterior age Samples for a horizon group across all records
 #'
 #' Builds a named list of posterior age sample vectors for the specified horizon
 #' column names, after applying per-record and global exclusions.
@@ -245,7 +245,7 @@ parse_excluded_horizons <- function(excluded_horizons, all_records) {
 #'   Records with no valid samples after filtering are omitted.
 #'
 #' @keywords internal
-collect_horizon_samples <- function(records_with_horizon, relevant_horizons,
+get_horizon_posteriors <- function(records_with_horizon, relevant_horizons,
                                     processed, per_record_excluded, global_excluded) {
   result <- list()
   for (rec in records_with_horizon) {
