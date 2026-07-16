@@ -22,7 +22,7 @@ To use the *SyncER* package, download it from [GitHub](https://github.com/katlee
 
 ```{r SyncER-install}
 install.packages("remotes")
-remotes::install_github("katleenwils/SyncER", build_vignettes = TRUE)
+remotes::install_github("katleenwils/SyncER")
 library(SyncER)
 ```
 
