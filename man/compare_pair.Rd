@@ -2,7 +2,7 @@
 % Please edit documentation in R/synchronicity-helpers.R
 \name{compare_pair}
 \alias{compare_pair}
-\title{Compute a Single Pairwise Log-Ratio Comparison}
+\title{Compute a log-ratio values for a single pair-wise comparison}
 \usage{
 compare_pair(
   col1,
@@ -33,7 +33,7 @@ comparisons; \code{variant1} in the stats row is then set to \code{NA}.}
 
 \item{horizon}{Character string identifying the event/horizon being compared.}
 
-\item{thresholds}{Named list as returned by \code{resolve_horizon_thresholds()}.}
+\item{thresholds}{Named list as returned by \code{get_horizon_thresholds()}.}
 
 \item{summaries}{Named list of per-record summary data frames from
 \code{process_event_ages()$summaries} (for min/max in the viz row).}
@@ -45,9 +45,9 @@ Named list with elements \code{lr_name}, \code{variant_key}, \code{ABlr},
 \code{score}, \code{precision}, \code{stats_row}, \code{viz_row}.
 }
 \description{
-Core computation for one record pair within \code{compute_synchronicity()}.
+Core computation for one record pair within \code{compute_synchronicity_values()}.
 Draws \code{n_samples} log-ratios, scores them against the age-difference bounds,
 assesses distribution shape, estimates precision, and assembles the statistics and
-visualisation rows.
+visualization rows.
 }
 \keyword{internal}

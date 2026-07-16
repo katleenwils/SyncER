@@ -29,7 +29,7 @@ system.file("analysis", package = "SyncER")
 source(system.file("analysis", "method_comparison.R", package = "SyncER"))
 ```
 
-Results (six CSVs — pairwise / combined / performance, each for raw and synchronised ages) are written to a fresh folder under `tempdir()`; set `results_dir` near the top of the script to keep them somewhere permanent. SyncER's synchronicity score is computed through the package itself (`calculate_overall_synchronicity()`), so the comparison reflects the actual package method.
+Results (six CSVs — pairwise / combined / performance, each for raw and synchronised ages) are written to a fresh folder under `tempdir()`; set `results_dir` near the top of the script to keep them somewhere permanent. SyncER's synchronicity score is computed through the package itself (`compute_overall_synchronicity()`), so the comparison reflects the actual package method.
 
 ## Regenerating the dataset from scratch (optional)
 

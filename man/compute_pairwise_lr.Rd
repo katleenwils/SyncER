@@ -2,7 +2,7 @@
 % Please edit documentation in R/lr-maths.R
 \name{compute_pairwise_lr}
 \alias{compute_pairwise_lr}
-\title{Sample Pairwise Log-Ratio}
+\title{MC sampling of age input to calculate log-ratio values}
 \usage{
 compute_pairwise_lr(samples_a, samples_b, n_samples = 10000)
 }

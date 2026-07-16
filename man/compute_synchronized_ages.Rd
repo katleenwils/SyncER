@@ -2,14 +2,13 @@
 % Please edit documentation in R/compute-synchronized-ages.R
 \name{compute_synchronized_ages}
 \alias{compute_synchronized_ages}
-\title{Compute Synchronized Ages}
+\title{Compute synchronized ages}
 \usage{
 compute_synchronized_ages(
   event_stats,
-  synchro_results,
   method = NULL,
   horizons = NULL,
-  excluded_horizons = NULL,
+  nonsynchro_horizons = NULL,
   excluded_records = NULL,
   age_record = NULL,
   age_value = NULL,
@@ -26,8 +25,6 @@ compute_synchronized_ages(
 \item{event_stats}{List containing processed age data and summaries (output from
 \code{process_event_ages()}).}
 
-\item{synchro_results}{Results from \code{verify_synchronicity()}.}
-
 \item{method}{Character string or named character vector specifying the synchronization
 method(s) used to assign a fixed age (and thus set the age difference between records to
 zero) for each horizon. Supply a single string to apply one method to every horizon in
@@ -36,37 +33,45 @@ isochron2 = "age")}) to use different methods for different horizons. Any horizo
 \code{horizons} but not named here falls back to \code{"mean"}. One of the following
 (default: \code{NULL}, i.e. \code{"mean"} for every horizon):
 \itemize{
-\item \code{"mean"} -- uses the mean and standard deviation of the available age
+\item \code{"mean"} uses the mean and standard deviation of the available age
 estimates across records. Recommended when the actual age is unknown (default).
-\item \code{"mean_fixederror"} -- uses the mean of the available age estimates but
+\item \code{"mean_fixederror"} uses the mean of the available age estimates but
 applies an arbitrarily small, user-supplied error (via \code{age_error}).
 Recommended when the actual age is unknown and you want to be very strict for
 synchronicity testing.
-\item \code{"Bayesian"} -- combines the per-record age PDFs using the Bayesian rules
+\item \code{"Bayesian"} combines the per-record age PDFs using the Bayesian rules
 for combination of probabilities (Bayes 1763; Doran and Hodgson 1975; see
-\url{https://c14.arch.ox.ac.uk/oxcal3/math_ca.htm#comb}). Recommended when the
-actual age is unknown but the age-depth models are assumed to be accurate.
-\item \code{"ageofrecord"} -- adopts the age estimate of one specific record (chosen
+\url{https://c14.arch.ox.ac.uk/oxcal3/math_ca.htm#comb}). This will generate a
+plot with the age PDFs of the considered event across the different records,
+and the resulting age combination. Recommended only when the actual age is unknown
+but the age-depth models are assumed to be accurate.
+\item \code{"ageofrecord"} adopts the age estimate of one specific record (chosen
 via \code{age_record}). Recommended when there are clear indications that one age
 model is more accurate than the others.
-\item \code{"age"} -- assigns a specific, externally-known age and error (via
+\item \code{"age"} assigns a specific, externally-known age and error (via
 \code{age_value}, \code{age_error} and \code{age_cc}). Recommended when independent
 calibrated age information is available.
 }}
 
 \item{horizons}{Character vector of the horizon names to synchronize (default: \code{NULL}).
 Include every horizon you want to assign a fixed age to. Horizons listed here without an
-explicit entry in \code{method} are synchronized with \code{"mean"}.}
+explicit entry in \code{method} are synchronized with \code{"mean"}
+(unless a single method value is supplied that applies to every horizon).}
 
-\item{excluded_horizons}{Named or unnamed character vector (or list) of horizons to leave out
-of the synchronization (default: \code{NULL}). Name an entry after a record to exclude a
-horizon only for that record (\code{list("core2_synced" = "synchro-test-wrong")}, e.g. a
-layer you tested but consider non-synchronous in that record). Use the key \code{"global"}
-(or an unnamed entry) to exclude a tested horizon set from every record.}
+\item{nonsynchro_horizons}{Horizons that were tested but are considered \emph{not}
+synchronous, and so should not be age-matched across records (default: \code{NULL}).
+Name an entry after a record (\code{list("core2_synced" = "synchro-test-wrong")}) to drop
+that record's layer from the horizon's calculation and from its synchronized age, while
+the other records still synchronize it. Use the key \code{"global"} (or an unnamed entry)
+to drop a horizon in every record, which is useful for a name variant you never want matched. To
+skip a standalone horizon altogether, simply leave it out of \code{horizons}. Horizon
+names are matched exactly, so use \code{horizon_groups} to declare the name variants of a
+single event. Pass the same value to \code{assign_nonsynchro_age()} to give these horizons
+an older-than/younger-than reference age instead.}
 
 \item{excluded_records}{Character vector or named list of records to exclude from the pooled
 (\code{"mean"}, \code{"mean_fixederror"}, \code{"Bayesian"}) age calculations (default:
-\code{NULL}) -- e.g. a record with unreliable age information. Pass a character vector
+\code{NULL}) - e.g. a record with unreliable age information. Pass a character vector
 (\code{c("core3")}) to exclude the record(s) for every horizon, or a named list
 (\code{list("isochron3" = "core3")}) to exclude a record only for specific horizons.}
 
@@ -110,11 +115,10 @@ Named list with two elements:
 \item \code{adjusted_ages}: Named list of data frames (one per horizon) with columns
 \code{record}, \code{adjusted_age}, \code{adjusted_error}, \code{cc}
 \item \code{bayesian_plot_data}: Named list (one entry per Bayesian horizon) with
-raw plot data — pass each element to \code{plot_bayesian_combination()} to
+raw plot data — pass each element to \code{plot_bayesian_age_combination()} to
 draw to the console or save a PDF
 }
 }
 \description{
-Pure-compute core for age synchronization. Performs all method dispatch and age
-calculation without any plotting or file I/O.
+Age synchronization function that calculates age for considered isochrons using one of five possible methods.
 }

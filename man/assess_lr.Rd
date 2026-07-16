@@ -2,7 +2,7 @@
 % Please edit documentation in R/lr-maths.R
 \name{assess_lr}
 \alias{assess_lr}
-\title{Assess Log-Ratio Vector for Distributional Quality}
+\title{Asses log-ratio value distribution for normality and centering to allow for synchronicity precision calculation}
 \usage{
 assess_lr(ABlr)
 }

@@ -2,17 +2,17 @@
 % Please edit documentation in R/compute-synchronicity.R
 \name{print_validation_summary}
 \alias{print_validation_summary}
-\title{Print Validation Thresholds Summary}
+\title{Print summary of isochron-based validation thresholds}
 \usage{
 print_validation_summary(thresholds)
 }
 \arguments{
-\item{thresholds}{Output list from \code{calculate_validation_thresholds()}.}
+\item{thresholds}{Output list from \code{compute_isochron_thresholds()}.}
 }
 \value{
 Invisibly returns \code{thresholds} (unchanged).
 }
 \description{
 Prints a formatted summary table of the thresholds returned by
-\code{calculate_validation_thresholds()}.
+\code{compute_isochron_thresholds()}.
 }

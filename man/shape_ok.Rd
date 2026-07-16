@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{shape_ok}
 \alias{shape_ok}
-\title{Check Distribution Shape via Skewness and Kurtosis Z-Tests}
+\title{Check log-ratio distribution shape via skewness and kurtosis z-tests}
 \usage{
 shape_ok(x, critical_z = 1.96)
 }
@@ -17,12 +17,10 @@ Logical: TRUE if both z_skewness and z_kurtosis are within bounds.
 }
 \description{
 Flags a numeric vector as approximately normal-shaped using the standard
-errors of skewness and kurtosis (Tabachnick & Fidell rule of thumb):
+errors of skewness and kurtosis:
 z_skewness = skewness / sqrt(6 / N)
 z_kurtosis = excess_kurtosis / sqrt(24 / N)
 If either |z| exceeds the critical value, the distribution is flagged
-non-normal on that characteristic. Unlike Shapiro-Wilk, this still uses N
-explicitly in its standard error, but is the conventional approach for
-assessing skew/peakedness rather than overall distributional fit.
+non-normal on that characteristic.
 }
 \keyword{internal}

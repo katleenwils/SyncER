@@ -7,7 +7,7 @@
 build_group_lookup(horizon_groups)
 }
 \arguments{
-\item{horizon_groups}{Named list as passed to \code{compute_synchronicity()} or
+\item{horizon_groups}{Named list as passed to \code{compute_synchronicity_values()} or
 \code{compute_synchronized_ages()}, or \code{NULL}.}
 }
 \value{

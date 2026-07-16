@@ -2,12 +2,12 @@
 % Please edit documentation in R/synchronicity-helpers.R
 \name{parse_excluded_horizons}
 \alias{parse_excluded_horizons}
-\title{Parse Excluded Horizons Into Per-Record and Global Exclusion Lists}
+\title{Seperate per-record excluded horizons from globally excluded horizons}
 \usage{
-parse_excluded_horizons(excluded_horizons, all_records)
+parse_excluded_horizons(nonsynchro_horizons, all_records)
 }
 \arguments{
-\item{excluded_horizons}{Named list, named character vector, or unnamed character
+\item{nonsynchro_horizons}{Named list, named character vector, or unnamed character
 vector. Named entries are matched against \code{all_records} by substring;
 unnamed entries (or elements keyed \code{"global"}) are global.}
 
@@ -21,7 +21,7 @@ Named list with:
 }
 }
 \description{
-Normalises the \code{excluded_horizons} argument into two tidy outputs used
+Normalizes the \code{nonsynchro_horizons} argument into two tidy outputs used
 downstream to filter age columns. Accepts a named list (CASE 1), a named
 character vector (CASE 2), or an unnamed character vector (global exclusion).
 }

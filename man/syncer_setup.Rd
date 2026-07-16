@@ -2,7 +2,7 @@
 % Please edit documentation in R/set-wd.R
 \name{syncer_setup}
 \alias{syncer_setup}
-\title{Set Up Working Directory and Output Folder}
+\title{Set up SyncER working directory and output folder}
 \usage{
 syncer_setup(wd = getOption("SyncER.wd"))
 }

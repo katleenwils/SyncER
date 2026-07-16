@@ -2,7 +2,7 @@
 % Please edit documentation in R/compute-synchronicity.R
 \name{verify_synchronicity}
 \alias{verify_synchronicity}
-\title{Write and Plot Synchronicity Results}
+\title{Write and plot synchronicity testing results for evaluation}
 \usage{
 verify_synchronicity(
   synchro_result,
@@ -18,7 +18,7 @@ verify_synchronicity(
 )
 }
 \arguments{
-\item{synchro_result}{The list returned by \code{compute_synchronicity()}.}
+\item{synchro_result}{The list returned by \code{compute_synchronicity_values()}.}
 
 \item{event_names}{Character vector of event names being tested. Falls back to
 naming the CSV file when \code{group_name} is not supplied.}
@@ -38,7 +38,7 @@ to all of \code{event_names} pasted together otherwise.}
 \item{isochron}{Logical; when \code{TRUE} a warning is shown if >10\\% of comparisons
 fail, and the CSV file is named \code{"isochron"} by default (default: \code{FALSE}).}
 
-\item{offset}{Numeric offset correction value passed to \code{plot_synchronicity()}
+\item{offset}{Numeric offset correction value passed to \code{plot_synchronicity_evaluation()}
 (default: \code{bp_datum()}, i.e. the current year minus 1950).}
 
 \item{fig_width}{Numeric width of output PDF figures in inches (default: 10).}
@@ -61,7 +61,7 @@ fail, and the CSV file is named \code{"isochron"} by default (default: \code{FAL
 Invisibly returns \code{synchro_result} unchanged.
 }
 \description{
-I/O counterpart to \code{compute_synchronicity()}: saves a CSV of horizon statistics,
-prints a summary to the console, and produces per-horizon PDF visualizations.
-Call \code{compute_synchronicity()} first and pass its result here.
+Saves a CSV of horizon statistics, prints a summary to the console,
+and produces per-horizon visualizations of the age PDFs and log-ratio distributions.
+Call \code{compute_synchronicity_values()} first and pass its result here.
 }

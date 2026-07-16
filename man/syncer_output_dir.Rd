@@ -2,7 +2,7 @@
 % Please edit documentation in R/set-wd.R
 \name{syncer_output_dir}
 \alias{syncer_output_dir}
-\title{SyncER Output Directory}
+\title{Set up SyncER output directory}
 \usage{
 syncer_output_dir()
 }
@@ -11,7 +11,7 @@ Character string: path to the \code{SyncER_outputs} directory.
 }
 \description{
 Returns the path to the \code{SyncER_outputs} folder inside the current
-working directory, creating it if it does not already exist. Every SyncER
+working directory, creating it if it does not already exist. Every \emph{SyncER}
 function that writes files (CSVs, Excel workbooks, PDFs) defaults its
 output-location argument to this folder, so that all package output ends
 up in one predictable place unless the user explicitly overrides it.

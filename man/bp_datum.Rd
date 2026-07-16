@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{bp_datum}
 \alias{bp_datum}
-\title{Current BP Datum (Year - 1950)}
+\title{Determine current BP datum (year - 1950)}
 \usage{
 bp_datum()
 }
@@ -12,6 +12,5 @@ Integer: current year minus 1950.
 \description{
 Returns the number of years elapsed since the radiocarbon BP datum (1950),
 calculated from the current system date. Used as the default \code{offset}/
-\code{age_offset} argument throughout \emph{SyncER} instead of a hardcoded
-value, so the default stays correct in future years.
+\code{age_offset} argument throughout \emph{SyncER} to avoid negative age values.
 }
