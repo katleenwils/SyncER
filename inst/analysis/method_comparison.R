@@ -13,7 +13,7 @@
 # package distribution (inst/extdata): the synthetic record data and the Bacon
 # age-depth output for each core, both raw (core*) and synchronised (core*_synced).
 #
-# SyncER's SS is computed through the package (calculate_overall_synchronicity);
+# SyncER's SS is computed through the package (compute_overall_synchronicity);
 # the alternative methods live in other_tests.R (sourced below).
 #
 # To regenerate the synthetic dataset from scratch, see generate_dataset.R.
@@ -41,7 +41,7 @@ cat("Reading bundled input from:\n  ", extdata,
     "\nWriting results to:\n  ", results_dir, "\n\n")
 
 # ── Input data (from the package distribution) ────────────────────────────────
-input       <- load_excel_data(folder_path = extdata, file_name = "record_data_input.xlsx")
+input       <- read_record_data(folder_path = extdata, file_name = "record_data_input.xlsx")
 record_data <- input$record_data
 max_depths  <- input$max_depths
 
@@ -54,7 +54,7 @@ max_depths  <- input$max_depths
 # If your record_data still has synchro-test rows, relabel them back to the
 # generic "synchronous" / "non-synchronous" classes before running this script.
 #
-# One definition of every event-type role; expand_horizon_groups() derives
+# One definition of every event-type role; load_horizon_names() derives
 # event_types / isochrons / test_events / isochron_groups / test_horizon_groups.
 horizon_groups <- list(
   "isochron1" = list(role = "isochron"), "isochron2" = list(role = "isochron"),
@@ -65,7 +65,7 @@ horizon_groups <- list(
   "synchronous"     = list(role = "other"),
   "non-synchronous" = list(role = "other")
 )
-list2env(expand_horizon_groups(horizon_groups), environment())
+invisible(list2env(load_horizon_names(horizon_groups), environment()))
 
 # ── Comparison settings ───────────────────────────────────────────────────────
 confidence_level <- 0.95
@@ -75,13 +75,13 @@ datums_to_test   <- seq(0, 1000, by = 100) # datums at which SS is scored (ss_pa
 
 # ── Event ages from the bundled Bacon output ──────────────────────────────────
 # No Bacon re-run is needed: the raw (core*) and synchronised (core*_synced)
-# model output is included in inst/extdata, so extract_ages() reads it directly.
-event_ages <- extract_ages(
+# model output is included in inst/extdata, so load_event_ages() reads it directly.
+event_ages <- load_event_ages(
   folder_path = extdata, record_data = record_data, event_types = event_types,
   max_depths = max_depths, isochrons = isochrons, test_horizons = test_events,
   reload_existing = FALSE, output_dir = results_dir
 )
-event_ages_synced <- extract_ages(
+event_ages_synced <- load_event_ages(
   folder_path = extdata, record_data = record_data, event_types = event_types,
   max_depths = max_depths, isochrons = isochrons, test_horizons = test_events,
   synced = "_synced", reload_existing = FALSE, output_dir = results_dir
@@ -94,13 +94,13 @@ event_ages_synced <- extract_ages(
 
 # ── compute_ss_score ──────────────────────────────────────────────────────────
 # SyncER Synchronicity Score (SS) for a set of posterior age vectors, computed by
-# the PACKAGE itself via calculate_overall_synchronicity() -- the same function
-# compute_synchronicity() uses for its overall score -- so the confusion-matrix
+# the PACKAGE itself via compute_overall_synchronicity() -- the same function
+# compute_synchronicity_values() uses for its overall score -- so the confusion-matrix
 # evaluation reflects the package's actual scoring, not a reimplementation.
 #
 # The overall score is the proportion of joint Monte Carlo draws in which every
 # record simultaneously falls within the relative tolerance
-# +/- t, t = log(1 + age_difference) (matching SyncER's resolve_horizon_thresholds()).
+# +/- t, t = log(1 + age_difference) (matching SyncER's get_horizon_thresholds()).
 #
 # Arguments:
 #   age_list         : named list of numeric age vectors (one per core)
@@ -130,7 +130,7 @@ compute_ss_score <- function(age_list,
   shifted <- lapply(age_list, function(a) a + offset)
   t <- log(1 + age_difference)   # symmetric log-space bounds, as in the package
 
-  # Deterministic Monte Carlo: fix the RNG so calculate_overall_synchronicity()
+  # Deterministic Monte Carlo: fix the RNG so compute_overall_synchronicity()
   # resamples the SAME posterior indices at every datum and for every variant.
   # This makes the per-datum SS scores (and hence the max-wins ranking) a pure
   # function of the offset — re-running gives identical PASS/FAIL, and any change
@@ -145,7 +145,7 @@ compute_ss_score <- function(age_list,
   set.seed(seed)
 
   res <- tryCatch(
-    calculate_overall_synchronicity(shifted,
+    compute_overall_synchronicity(shifted,
                                     conf_level          = confidence_level,
                                     age_diff_log_bounds = c(-t, t),
                                     n_samples           = n_samples),
