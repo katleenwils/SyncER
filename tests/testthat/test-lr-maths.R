@@ -65,45 +65,45 @@ test_that("compute_pairwise_lr returns all zeros when A == B (same object)", {
   expect_equal(mean(lr), 0, tolerance = 0.05)
 })
 
-test_that("find_precision_threshold returns NA for empty input", {
-  expect_true(is.na(find_precision_threshold(numeric(0), 0.95)))
+test_that("compute_minimal_precision_threshold returns NA for empty input", {
+  expect_true(is.na(compute_minimal_precision_threshold(numeric(0), 0.95)))
 })
 
-test_that("find_precision_threshold returns NA for all-NA input", {
-  expect_true(is.na(find_precision_threshold(c(NA, NA, NA), 0.95)))
+test_that("compute_minimal_precision_threshold returns NA for all-NA input", {
+  expect_true(is.na(compute_minimal_precision_threshold(c(NA, NA, NA), 0.95)))
 })
 
-test_that("find_precision_threshold returns correct threshold for known vector", {
+test_that("compute_minimal_precision_threshold returns correct threshold for known vector", {
   # Sorted absolute values: 0.1, 0.2, 0.3, 0.4, 0.5
   # For conf_level = 0.6, need at least 60% within [-t, t].
   # 3 out of 5 = 60%, so t should be the 3rd smallest abs value = 0.3
   x <- c(-0.1, 0.2, -0.3, 0.4, -0.5)
-  result <- find_precision_threshold(x, conf_level = 0.6)
+  result <- compute_minimal_precision_threshold(x, conf_level = 0.6)
   expect_equal(result, 0.3, tolerance = 1e-10)
 })
 
-test_that("find_precision_threshold works at conf_level = 1.0", {
+test_that("compute_minimal_precision_threshold works at conf_level = 1.0", {
   x <- c(-0.1, 0.2, -0.5)
   # 100% within t, so t = max(abs(x)) = 0.5
-  result <- find_precision_threshold(x, conf_level = 1.0)
+  result <- compute_minimal_precision_threshold(x, conf_level = 1.0)
   expect_equal(result, 0.5, tolerance = 1e-10)
 })
 
-test_that("calculate_overall_synchronicity returns NA when n_records < 2", {
+test_that("compute_overall_synchronicity returns NA when n_records < 2", {
   samples <- list(recA = rnorm(100, 500, 10))
-  result <- calculate_overall_synchronicity(samples, conf_level = 0.95,
+  result <- compute_overall_synchronicity(samples, conf_level = 0.95,
                                             age_diff_log_bounds = c(-0.05, 0.05))
   expect_true(is.na(result$overall_score))
   expect_true(is.na(result$overall_precision))
   expect_equal(result$n_records, 1L)
 })
 
-test_that("calculate_overall_synchronicity returns score in [0,1] for two records", {
+test_that("compute_overall_synchronicity returns score in [0,1] for two records", {
   set.seed(5128)
   a <- rnorm(1000, mean = 500, sd = 5)
   b <- rnorm(1000, mean = 500, sd = 5)
   samples <- list(recA = a, recB = b)
-  result <- calculate_overall_synchronicity(samples, conf_level = 0.95,
+  result <- compute_overall_synchronicity(samples, conf_level = 0.95,
                                             age_diff_log_bounds = c(-0.05, 0.05))
   expect_true(result$overall_score >= 0 && result$overall_score <= 1)
   expect_equal(result$n_records, 2L)

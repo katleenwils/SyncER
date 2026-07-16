@@ -1,7 +1,7 @@
 # End-to-end tests for the synchronicity compute pipeline.
 #
 # These drive the full statistical core of the method --
-#   process_event_ages() -> compute_synchronicity()
+#   process_event_ages() -> compute_synchronicity_values()
 # -- on small synthetic posterior age-sample tables where the correct verdict is
 # known *by construction*: records drawn from the same age distribution must score
 # as synchronous, and a record shifted well outside the age-difference tolerance
@@ -24,7 +24,7 @@ make_out_data <- function(record_means, n = 3000, sd = 30, seed = 1,
   })
 }
 
-test_that("process_event_ages yields the structure compute_synchronicity expects", {
+test_that("process_event_ages yields the structure compute_synchronicity_values expects", {
   out_data    <- make_out_data(c(recA = 5000, recB = 5000, recC = 5000))
   event_stats <- process_event_ages(out_data, event_deposits = "tephra", offset = 0)
 
@@ -42,7 +42,7 @@ test_that("end-to-end: three co-located records score as highly synchronous", {
   out_data    <- make_out_data(c(recA = 5000, recB = 5000, recC = 5000))
   event_stats <- process_event_ages(out_data, event_deposits = "tephra", offset = 0)
 
-  res <- compute_synchronicity(event_stats, event_names = "tephra1",
+  res <- compute_synchronicity_values(event_stats, event_names = "tephra1",
                                n_samples = 2000, seed = 5128)
 
   overall <- res$overall_scores$tephra1$all
@@ -64,7 +64,7 @@ test_that("end-to-end: one strongly offset record breaks synchronicity", {
   out_data    <- make_out_data(c(recA = 5000, recB = 5000, recC = 6000))
   event_stats <- process_event_ages(out_data, event_deposits = "tephra", offset = 0)
 
-  res <- compute_synchronicity(event_stats, event_names = "tephra1",
+  res <- compute_synchronicity_values(event_stats, event_names = "tephra1",
                                n_samples = 2000, seed = 5128)
 
   expect_lt(res$overall_scores$tephra1$all$overall_score, 0.2)
@@ -82,15 +82,15 @@ test_that("end-to-end: results are reproducible for a fixed seed", {
   out_data    <- make_out_data(c(recA = 5000, recB = 5010, recC = 4990))
   event_stats <- process_event_ages(out_data, event_deposits = "tephra", offset = 0)
 
-  res1 <- compute_synchronicity(event_stats, "tephra1", n_samples = 2000, seed = 5128)
-  res2 <- compute_synchronicity(event_stats, "tephra1", n_samples = 2000, seed = 5128)
+  res1 <- compute_synchronicity_values(event_stats, "tephra1", n_samples = 2000, seed = 5128)
+  res2 <- compute_synchronicity_values(event_stats, "tephra1", n_samples = 2000, seed = 5128)
 
   expect_equal(res1$overall_scores$tephra1$all$overall_score,
                res2$overall_scores$tephra1$all$overall_score)
   expect_equal(res1$all_horizon_stats, res2$all_horizon_stats)
 
   # A different seed should generally move the Monte Carlo estimate a little.
-  res3 <- compute_synchronicity(event_stats, "tephra1", n_samples = 2000, seed = 99)
+  res3 <- compute_synchronicity_values(event_stats, "tephra1", n_samples = 2000, seed = 99)
   expect_false(isTRUE(all.equal(res1$all_horizon_stats$mean_LR,
                                 res3$all_horizon_stats$mean_LR)))
 })
@@ -106,7 +106,7 @@ test_that("end-to-end: horizon grouping compares variant columns across records"
   )
   event_stats <- process_event_ages(out_data, event_deposits = "tephra", offset = 0)
 
-  res <- compute_synchronicity(
+  res <- compute_synchronicity_values(
     event_stats,
     event_names    = "tephra1",
     horizon_groups = list(tephra1 = c("tephra1", "tephra1a")),
