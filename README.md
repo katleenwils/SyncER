@@ -39,4 +39,4 @@ If you run into a problem or unexpected behaviour, please open an issue on the [
 
 *SyncER* is research software and is provided **as is**, without warranty of any kind, either expressed or implied. The entire risk as to the quality and performance of the software is with you. Interpretations drawn from *SyncER* outputs remain the responsibility of the user. Synchronicity scores are conditional on the quality of the underlying age-depth models, and synchronized models gain **precision** without necessarily gaining **accuracy** — relative synchronicity is only ever evaluated with respect to the other records included.
 
-SyncER © 2026 Katleen Wils. Licensed under the GNU General Public License v3.0 (GPL-3); see the [LICENSE.md]{.underline} file for the full text.
+SyncER © 2026 Katleen Wils. Licensed under the GNU General Public License v3.0 (GPL-3); see the LICENSE.md file for the full text.
