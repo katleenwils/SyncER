@@ -1,12 +1,12 @@
 # SyncER - Synchronicity testing for Event Records
 
-#### Useage
+#### Usage
 
 *SyncER* is a toolbox developed to **sync**hronize age-depth models and evaluate the potential synchronous deposition of correlated **event** deposits between geological **records**.
 
 This notebook presents the *SyncER* workflow by illustrating the different steps on a synthetic test dataset. You can adjust the executable cells to apply it to your own dataset, but it is recommendable to instead copy the different steps to your personal R script for execution.
 
-When using *SyncER*, please cite the following paper:
+When using *SyncER*, cite the following paper:
 
 > Wils, K, Ramisch, A. SyncER: Synchronicity testing for Event Records using tied age-depth models. *Scientific Reports.*
 
@@ -22,21 +22,22 @@ To use the *SyncER* package, download it from [GitHub](https://github.com/katlee
 
 ```{r SyncER-install}
 install.packages("remotes")
-remotes::install_github("katleenwils/SyncER", build_vignettes = TRUE)
+remotes::install_github("katleenwils/SyncER")
 library(SyncER)
 ```
 
 #### Reporting bugs
 
-If you run into a problem or unexpected behaviour, please open an issue on the [GitHub issue tracker](https://github.com/katleenwils/SyncER/issues). A report is most useful when it includes:
+If you run into a problem or unexpected behaviour, please open an issue on the [GitHub issue tracker](https://github.com/katleenwils/SyncER/issues) or contact the developer. Questions and suggestions are welcome there too, and will be accomodated as much as reasonably possible.
+A report is most useful when it includes:
 
 - the version of *SyncER* you are running (`packageVersion("SyncER")`),
 - the output of `sessionInfo()`,
 - a minimal example that reproduces the problem — the bundled example dataset is ideal,
 - what you expected to happen, and what happened instead.
 
-Questions and suggestions are welcome there too.
-
 #### Disclaimer
 
 *SyncER* is research software and is provided **as is**, without warranty of any kind, either expressed or implied. The entire risk as to the quality and performance of the software is with you. Interpretations drawn from *SyncER* outputs remain the responsibility of the user. Synchronicity scores are conditional on the quality of the underlying age-depth models, and synchronized models gain **precision** without necessarily gaining **accuracy** — relative synchronicity is only ever evaluated with respect to the other records included.
+
+SyncER © 2026 by Katleen Wils is licensed under CC BY 4.0
