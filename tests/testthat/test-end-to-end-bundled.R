@@ -1,5 +1,5 @@
 # End-to-end test on the BUNDLED example dataset, starting from the files that
-# actually ship with the package: record_data_input.xlsx and the Bacon .out files.
+# actually ship with the package: record_data_input and the Bacon .out files.
 #
 # Full pipeline exercised (no Bacon run, no rbacon needed -- load_event_ages() reads
 # the .out files directly and interpolates deterministically):
@@ -18,14 +18,14 @@
 # absorb the small score drift this introduces from one year to the next.
 REF_OFFSET <- bp_datum()
 
-# Locate a directory holding the shipped inputs: record_data_input.xlsx alongside
+# Locate a directory holding the shipped inputs: record_data_input alongside
 # per-record Bacon folders (core1/, ...) that contain .out files. Prefers an
 # installed inst/extdata/ copy (works under R CMD check); falls back to the
 # source-tree Example/ folder.
 find_example_dir <- function() {
   has_inputs <- function(d) {
     nzchar(d) &&
-      file.exists(file.path(d, "record_data_input.xlsx")) &&
+      file.exists(file.path(d, "record_data_input")) &&
       length(list.files(d, pattern = "[0-9]\\.out$", recursive = TRUE)) > 0
   }
   installed <- system.file("extdata", package = "SyncER")
@@ -42,7 +42,7 @@ find_example_dir <- function() {
 # reduce to the per-record posterior samples compute_synchronicity_values() consumes.
 build_event_stats <- function(dir) {
   input <- suppressMessages(read_record_data(
-    folder_path = dir, file_name = "record_data_input.xlsx"
+    folder_path = dir, file_name = "record_data_input"
   ))
   out_data <- suppressWarnings(suppressMessages(load_event_ages(
     folder_path   = dir,
@@ -78,7 +78,7 @@ test_that("bundled run: .out files -> event ages -> synchronicity scores", {
   skip_on_cran()
   dir <- find_example_dir()
   skip_if(is.na(dir),
-          "Bundled record_data_input.xlsx + .out files not found; ship them in inst/extdata to enable.")
+          "Bundled record_data_input + .out files not found; ship them in inst/extdata to enable.")
 
   event_stats <- build_event_stats(dir)
 
@@ -125,7 +125,7 @@ test_that("bundled run is reproducible across repeated compute calls", {
   skip_on_cran()
   dir <- find_example_dir()
   skip_if(is.na(dir),
-          "Bundled record_data_input.xlsx + .out files not found; ship them in inst/extdata to enable.")
+          "Bundled record_data_input + .out files not found; ship them in inst/extdata to enable.")
 
   event_stats <- build_event_stats(dir)
   expect_equal(run_compute(event_stats)$all_horizon_stats,

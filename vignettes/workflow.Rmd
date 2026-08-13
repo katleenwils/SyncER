@@ -17,7 +17,7 @@ library(SyncER)
 # --- Choose where this example should run ------------------------------------
 syncer_wd <- file.path(path.expand("~"), "SyncER_example")
 
-# Copy the bundled input file (record_data_input.xlsx) and the Bacon .out files
+# Copy the bundled input folder (record_data_input/) and the Bacon .out files
 # (in the core* folders) from the installed package into syncer_wd.
 dir.create(syncer_wd, recursive = TRUE, showWarnings = FALSE)
 example_dir <- system.file("extdata", package = "SyncER")
@@ -30,11 +30,11 @@ knitr::opts_knit$set(root.dir = syncer_wd)
 
 ## Step 1: Set up the *SyncER* workflow
 
-The setup chunk above already copied the bundled Example dataset from the installed package (`system.file("extdata", package = "SyncER")`) into `syncer_wd`, the writable working directory you chose. Call `syncer_setup()` to point *SyncER* at that folder for the rest of this document and to create the `SyncER_outputs` folder there. Note that `SyncER_outputs` only holds *SyncER*'s own results (plots, statistics, the exported `out_data_ages.xlsx`) -- the *rbacon*/*rplum* input and output folders (named after your records, e.g. `core1`) live in the working directory itself, following the folder structure that *rbacon*/*rplum* expect. When applying this to your own data, simply place your own `record_data_input.xlsx` in `syncer_wd` instead (and skip the copy step in the setup chunk). This is an excel file with all information for each of the records you would like to be considered. Each sheet represents a single record, for which information on the depth, age & error for each dated sample and the record top is given. Also include the radiocarbon calibration curve that is required *(0=no calibration, calendar ages; 1=IntCal20; 2=Marine20; 3=SHCal20)*. Additionally, the depths of the considered event deposits needs to be included. You are free to give the input depths as event-free depth or total depth.
+The setup chunk above already copied the bundled Example dataset from the installed package into `syncer_wd`, the working directory you chose. Call `syncer_setup()` to point *SyncER* at that folder for the rest of this document and to create the `SyncER_outputs` folder there. When applying this to your own data, simply place your own `record_data_input/` folder in `syncer_wd` instead (and skip the copy step in the setup chunk). This is a folder with one CSV file per record you would like to be considered (named `<record>.csv`). Each file represents a single record, for which information on the depth, age & error for each dated sample and the record top is given. Also include the radiocarbon calibration curve that is required *(0=no calibration, calendar ages; 1=IntCal20; 2=Marine20; 3=SHCal20)*. Additionally, the depths of the considered event deposits needs to be included. You are free to give the input depths as event-free depth or total depth.
 
 ```{r data-structure}
 output_dir <- syncer_setup(wd = syncer_wd)
-file_name  <- "record_data_input.xlsx"
+file_name  <- "record_data_input"
 ```
 
 List every type of event deposit that is included in your records in the single `horizon_groups` variable below (in the example*: isochron, synchronous, synchro-test and non-synchronous*). Each entry is named after the deposit's label in your input file and tagged with a `role`:
@@ -79,7 +79,7 @@ invisible(list2env(load_horizon_names(horizon_groups), environment())) # derives
 
 If you want to make use of the built-in compatibility with *rbacon or rplum*[^1], it is recommended to first run the age-depth models separately (in a different folder) to experiment with which parameters to use for each record. Subsequently, you can construct an age-depth model for each of your records in the SyncER framework. To do so, set up the correct folder structure to allow *SyncER* to run without issues using the bacon-setup chunk below. This creates a separate folder for each record, and places a `*.csv` file in each folder containing all age info for that record.
 
-[^1]: If you do not want to make use of the built-in compatibility with *rbacon or rplum*, skip the remainder step 2 and set up (in a different folder) the input data as desired by your age-depth modelling software (e.g., OxCal, Chronomodel - do not forget to add the relevant citations to your work). Create the necessary age-depth models, and compile an `out_data_ages.xlsx` file that is saved in the `SyncER_outputs` folder inside your working directory (`syncer_wd`). The `out_data_ages.xlsx` file should be structured as followed:
+[^1]: If you do not want to make use of the built-in compatibility with *rbacon or rplum*, skip the remainder step 2 and set up (in a different folder) the input data as desired by your age-depth modelling software (e.g., OxCal, Chronomodel - do not forget to add the relevant citations to your work). Create the necessary age-depth models, and compile an `out_data_ages/` folder of CSV files (one per record) that is saved in the `SyncER_outputs` folder inside your working directory (`syncer_wd`). Each CSV file should be structured as followed:
 
     | eventhorizon1         | eventhorizon2         |
     |-----------------------|-----------------------|
@@ -89,9 +89,9 @@ If you want to make use of the built-in compatibility with *rbacon or rplum*[^1]
     | ...                   | ...                   |
     | age1000_eventhorizon1 | age1000_eventhorizon2 |
 
-    : *Structure of the `out_data_ages.xlsx` file*
+    : *Structure of each CSV file in `out_data_ages/`*
 
-    Each column should contain the age information for a single event horizon. Each row should have one possible age, and ideally at least a thousand ages resulting from different age simulations are available (i.e. the basis for a PDF of an event age). The name of each event horizon column should be unique, and corresponding to the names in `record_data_input.xlsx`. If generic names were used (e.g., *synchronous*)*,* you could add the depth of that event in your record to avoid confusion (e.g., *synchronous_35*).
+    Each column should contain the age information for a single event horizon. Each row should have one possible age, and ideally at least a thousand ages resulting from different age simulations are available (i.e. the basis for a PDF of an event age). The name of each event horizon column should be unique, and corresponding to the names in `record_data_input/`. If generic names were used (e.g., *synchronous*)*,* you could add the depth of that event in your record to avoid confusion (e.g., *synchronous_35*).
 
     Finally, make sure to load the file into R using the following code:
 
@@ -109,9 +109,9 @@ age_model_input(record_data,
                 lead_sample_names = lead_sample_names)
 ```
 
-The code below includes some standard settings and automatically determines the ages of all depths until the deepest depth given in the `record_data_input.xlsx` file (be it a sample or an event deposit). If you need specific settings for a certain record (e.g., instantaneous deposits in case your input file contains total depth and not event-free depth), adjust the first part of this coding block to match the *rbacon* or *rplum* command you need (details on the possible input variations can be found in their respective manuals) and make sure to uncomment this part. Otherwise, all records will be ran with the same standard settings.
+The code below includes some standard settings and automatically determines the ages of all depths until the deepest depth given in the `record_data_input/` file (be it a sample or an event deposit). If you need specific settings for a certain record (e.g., instantaneous deposits in case your input file contains total depth and not event-free depth), adjust the first part of this coding block to match the *rbacon* or *rplum* command you need (details on the possible input variations can be found in their respective manuals) and make sure to uncomment this part. Otherwise, all records will be ran with the same standard settings.
 
-Actually calling `Bacon()`/`Plum()` requires the *rbacon*/*rplum* packages to be installed and loaded (`library(rbacon)` or `library(rplum)`) -- *SyncER* does not load them for you. The bundled `Example` dataset already comes with completed Bacon runs in the `core1`-`core5` folders, so there is no need to install *rbacon*/*rplum* or (re)run the models just to follow this vignette: `run_age` below defaults to `FALSE`, and every `Bacon()`/`Plum()` call in the remainder of this document is wrapped in `if (run_age) { ... }`, so it is skipped and the existing model output is left untouched. `load_event_ages()` afterwards reads directly from those `*.out` files. Set `run_age <- TRUE` (and load *rbacon*/*rplum*) if you want to reconstruct the age-depth models yourself, e.g. for your own dataset.
+Actually calling `Bacon()`/`Plum()` requires the *rbacon*/*rplum* packages to be installed and loaded (`library(rbacon)` or `library(rplum)`) - *SyncER* does not load them for you. The bundled `Example` dataset already comes with completed Bacon runs in the `core1`-`core5` folders, so there is no need to install *rbacon*/*rplum* or (re)run the models just to follow this vignette: `run_age` below defaults to `FALSE`, and every `Bacon()`/`Plum()` call in the remainder of this document is wrapped in `if (run_age) { ... }`, so it is skipped and the existing model output is left untouched. `load_event_ages()` afterwards reads directly from those `*.out` files. Set `run_age <- TRUE` (and load *rbacon*/*rplum*) if you want to reconstruct the age-depth models yourself, e.g. for your own dataset.
 
 ```{r age-toggle}
 run_age <- FALSE # set to TRUE to actually (re)run rbacon/rplum; requires library(rbacon) or library(rplum)
@@ -158,10 +158,10 @@ for (record in names(record_data)){
 }
 ```
 
-Extract the ages of the event deposits in each record and export them to the `out_data_ages.xlsx` file.
+Extract the ages of the event deposits in each record and export them to the `out_data_ages/` folder.
 
 ```{r extract-ages}
-reload_existing <- FALSE ## FALSE processes the bundled .out files and creates out_data_ages.xlsx; set TRUE on later runs to reuse an existing out_data_ages.xlsx
+reload_existing <- FALSE ## FALSE processes the bundled .out files and creates out_data_ages/; set TRUE on later runs to reuse an existing out_data_ages/
 event_ages <- load_event_ages(record_data = record_data, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, reload_existing = reload_existing, instantaneous_event_depths=event_depths, thick = 2 ## set to the thick value used in Bacon/Plum, single value or as list (for example: list("core1" = 2, "core3 = 1))
                            )
 if (!reload_existing) {
@@ -228,7 +228,7 @@ adjusted_ages <- synchronize_ages(isochron_stats, method = matching_method, hori
 
 ## Step 5: Create new precise age-depth models
 
-With the synchronized ages for your isochrons, you can create new age models. For this purpose, new `*.csv` files are created as input files for *rbacon*, placed in folders with the same name as the original record but with a *\_synced* suffix. As the ages of the isochron are considered to be precise, the *t.a* and *t.b* parameters in *rbacon* are adjusted to more closely approach a normal distribution rather than a t distribution with long tails for those ages. After running *rbacon* again with the code below[^2], the synchronized age-depth models can also be found in those folders. **Keep in mind that these new age-depth models have an improved [precision]{.underline}, but are not necessarily more accurate!** This means synchronicity will be evaluated relative to other synchronous deposits. An improvement in accuracy can only be guaranteed in case you have independent age control for your isochrons. Additionally, it is important to always keep checking if your age models still seem reasonable (no weird changes in sedimentation rate, age reversals etc).
+With the synchronized ages for your isochrons, you can create new age models. For this purpose, new `*.csv` files are created as input files for *rbacon*, placed in folders with the same name as the original record but with a *\_synced* suffix. As the ages of the isochron are considered to be precise, the *t.a* and *t.b* parameters in *rbacon* are adjusted to more closely approach a normal distribution rather than a t distribution with long tails for those ages. This ensures that the isochron ages are considered more strictly (i.e. given a higher weight) compared to the age information obtained from the samples. After running *rbacon* again with the code below[^2], the synchronized age-depth models can also be found in those folders. **Keep in mind that these new age-depth models have an improved [precision]{.underline}, but are not necessarily more accurate!** This means synchronicity will be evaluated relative to other synchronous deposits. An improvement in accuracy can only be guaranteed in case you have independent age control for your isochrons. Additionally, it is important to always keep checking if your age models still seem reasonable (no weird changes in sedimentation rate, age reversals etc).
 
 [^2]: If you decided not to use the built-in compatibility with *rbacon*, skip the remainder of step 5 and repeat the procedure detailed in step 2 (using the data in the *\_synced* folders) to create the age-depth models with your desired software. To import the age info into *SyncER*, set the `synced_suffix` variable to *"\_synced"*.
 
@@ -278,10 +278,10 @@ for (record_synced in names(record_data_synced)){
 }
 ```
 
-After constructing the new age-depth models, extract the ages of the different event deposits in each synchronized record and export them to the `out_data_ages_synced.xlsx` file.
+After constructing the new age-depth models, extract the ages of the different event deposits in each synchronized record and export them to the `out_data_ages_synced/` folder.
 
 ```{r extract-synced-ages}
-reload_existing <- FALSE ## FALSE processes the bundled _synced .out files and creates out_data_ages_synced.xlsx; set TRUE on later runs to reuse an existing file
+reload_existing <- FALSE ## FALSE processes the bundled _synced .out files and creates out_data_ages_synced/; set TRUE on later runs to reuse an existing folder
 event_ages_synced <- load_event_ages(record_data = record_data, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, synced = "_synced", reload_existing = reload_existing, thick = 2)
 if (!reload_existing) {
   write_age_output_data(event_ages_synced, synced="_synced")}

@@ -17,13 +17,13 @@ system.file("analysis", package = "SyncER")
 
 | Script | What it does | Needs Bacon? |
 |------------------|---------------------------|---------------------------|
-| `generate_dataset.R` | Builds the synthetic five-core benchmark dataset (`core_data.xlsx`) and a summary figure (`core_plots.pdf`) from prescribed age–depth models. Fully reproducible (fixed seeds). | No |
+| `generate_dataset.R` | Builds the synthetic five-core benchmark dataset (`core_data/ (folder of CSVs)`) and a summary figure (`core_plots.pdf`) from prescribed age–depth models. Fully reproducible (fixed seeds). | No |
 | `other_tests.R` | Reference implementations of the alternative synchronicity tests used for comparison: OxCal-style agreement/difference indices, Parnell et al. (2008) age differences, and the overlap coefficient. Functions only — sourced by `method_comparison.R`. | No |
 | `method_comparison.R` | Runs the cross-method comparison across event deposits — SyncER's Synchronicity Score vs. the alternative tests — and writes the confusion-matrix / performance tables. | No (uses bundled output) |
 
 ## Running the comparison
 
-`method_comparison.R` is self-contained: it takes **all input from the installed package** (`inst/extdata`) — the synthetic record data (`record_data_input.xlsx`) and the Bacon age–depth model output for every core, both raw (`core*`) and synchronised (`core*_synced`). It does **not** re-run Bacon and does **not** run the SyncER synchronisation pipeline (that pipeline is demonstrated in the package vignette, `vignettes/workflow.Rmd`).
+`method_comparison.R` is self-contained: it takes **all input from the installed package** (`inst/extdata`) — the synthetic record data (`record_data_input`) and the Bacon age–depth model output for every core, both raw (`core*`) and synchronised (`core*_synced`). It does **not** re-run Bacon and does **not** run the SyncER synchronisation pipeline (that pipeline is demonstrated in the package vignette, `vignettes/workflow.Rmd`).
 
 ``` r
 source(system.file("analysis", "method_comparison.R", package = "SyncER"))
@@ -37,11 +37,11 @@ Results (six CSVs — pairwise / combined / performance, each for raw and synchr
 source(system.file("analysis", "generate_dataset.R", package = "SyncER"))
 ```
 
-This writes `core_data.xlsx` and `core_plots.pdf` to `out_dir` (the working directory by default). To feed a freshly generated dataset through the full SyncER pipeline and produce your own Bacon output, follow `vignettes/workflow.Rmd`.
+This writes `core_data/ (folder of CSVs)` and `core_plots.pdf` to `out_dir` (the working directory by default). To feed a freshly generated dataset through the full SyncER pipeline and produce your own Bacon output, follow `vignettes/workflow.Rmd`.
 
 ## Dependencies
 
-Beyond SyncER itself, these scripts use: `overlapping`, `dplyr`, `tidyr` (comparison) and `openxlsx`, `ggplot2`, `gridExtra`, `cowplot`, `rintcal` (dataset generation). Install any that are missing before running.
+Beyond SyncER itself, these scripts use: `overlapping`, `dplyr`, `tidyr` (comparison) and `ggplot2`, `gridExtra`, `cowplot`, `rintcal` (dataset generation). Install any that are missing before running.
 
 ## Reproducibility notes
 

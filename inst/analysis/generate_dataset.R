@@ -1,17 +1,16 @@
 # Set the seed for reproducibility
 set.seed(125)
 
-required_packages <- c("openxlsx", "ggplot2", "dplyr", "gridExtra", "cowplot", "rintcal")
+required_packages <- c("ggplot2", "dplyr", "gridExtra", "cowplot", "rintcal")
 missing_packages  <- required_packages[!required_packages %in% installed.packages()[, "Package"]]
 if (length(missing_packages) > 0) install.packages(missing_packages)
 
-library(openxlsx)
 library(ggplot2)
 library(dplyr)
 library(gridExtra)
 library(cowplot)
 
-# All output (core_data.xlsx, core_plots.pdf) is written to out_dir. By default
+# All output (core_data/ CSVs, core_plots.pdf) is written to out_dir. By default
 # this is the current working directory; change it to write elsewhere.
 out_dir <- getwd()
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
@@ -215,7 +214,8 @@ generate_core_data <- function(core_index, core_name, non_synchro_depths,
 # -------------------------------
 # Run and save
 # -------------------------------
-wb <- createWorkbook()
+core_data_dir <- file.path(out_dir, "core_data")
+dir.create(core_data_dir, showWarnings = FALSE, recursive = TRUE)
 max_depths <- list()
 
 for (i in seq_along(core_depths)) {
@@ -235,20 +235,18 @@ for (i in seq_along(core_depths)) {
   core_data_list[[core_name]] <- df
 
   if (!is.null(df)) {
-    addWorksheet(wb, core_name)
-    writeData(wb, core_name, df)
+    write.csv(df, file.path(core_data_dir, paste0(core_name, ".csv")), row.names = FALSE)
   }
 }
 
-saveWorkbook(wb, file.path(out_dir, "core_data.xlsx"), overwrite = TRUE)
-cat("Data successfully saved to", file.path(out_dir, "core_data.xlsx"), "\n")
+cat("Data successfully saved to", core_data_dir, "\n")
 
 # -------------------------------
 # Plotting (unchanged)
 # -------------------------------
-file_path <- file.path(out_dir, "core_data.xlsx")
-sheets <- getSheetNames(file_path)
-core_data_list <- lapply(sheets, function(sheet) read.xlsx(file_path, sheet = sheet))
+csv_files <- list.files(core_data_dir, pattern = "\\.csv$", full.names = TRUE)
+sheets <- tools::file_path_sans_ext(basename(csv_files))
+core_data_list <- lapply(csv_files, read.csv)
 names(core_data_list) <- sheets
 
 event_colors <- c(

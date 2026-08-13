@@ -373,7 +373,7 @@ compute_event_ages <- function(raw_out_data,
 #' Wrapper function that reads \emph{rbacon}/\emph{rplum} \code{.out} files and returns a named list of
 #' processed event ages. Combines \code{read_age_model_output()} and
 #' \code{compute_event_ages()} into a single call. When \code{reload_existing}
-#' is \code{TRUE}, the previously exported Excel file is returned instead.
+#' is \code{TRUE}, the previously exported CSV folder is returned instead.
 #'
 #' @param folder_path Character string giving the parent directory that contains
 #'   per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: \code{"."}, i.e. the working
@@ -390,14 +390,14 @@ compute_event_ages <- function(raw_out_data,
 #' @param synced Character string suffix identifying synchronized output folders
 #'   (default: \code{""}).
 #' @param reload_existing Logical; when \code{TRUE} reads from an already-exported
-#'   Excel file instead of re-processing \code{.out} files (default: \code{FALSE}).
+#'   CSV folder instead of re-processing \code{.out} files (default: \code{FALSE}).
 #' @param instantaneous_event_depths Optional named list of depth intervals classified as instantaneous deposits per record
 #' that should not be considered for event-free depths.
 #' @param thick The \emph{rbacon}/\emph{rplum} section thickness used during age-depth modelling;
 #'   single numeric, named list per record, or \code{NULL} (default), in which case
 #'   it is derived per record from the model as \code{max_depths[record] / (n_cols - 3)}.
 #' @param output_dir Character string specifying where the previously-exported
-#'   \code{out_data_ages.xlsx} lives; only used when \code{reload_existing = TRUE}
+#'   \code{out_data_ages} folder lives; only used when \code{reload_existing = TRUE}
 #'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in
 #'   the working directory).
 #'
@@ -441,20 +441,20 @@ load_event_ages <- function(folder_path = ".",
   )
 }
 
-#' Write age data (including event ages) into an Excel file
+#' Write age data (including event ages) into CSV files
 #'
-#' Each record age information (including event ages) is written to a separate sheet in the output Excel file, with
-#'   sheet names matching the list element names, and each row represents a single MCMC simulation.
+#' Each record's age information (including event ages) is written to a separate CSV file inside an
+#'   output folder, with file names matching the list element names, and each row represents a single
+#'   MCMC simulation.
 #'
-#' @param out_data Named list of data frames where each element will become a separate worksheet.
-#' @param folder_path Character string specifying the location where the Excel file should be saved
+#' @param out_data Named list of data frames where each element will become a separate CSV file.
+#' @param folder_path Character string specifying the location where the output folder should be saved
 #'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).
-#' @param synced Character string suffix for the output filename (default: "");
+#' @param synced Character string suffix for the output folder name (default: "");
 #'   use "_synced" for synchronized data.
 #'
-#' @return No return value. Writes an Excel file and prints a success message with the file path.
+#' @return No return value. Writes one CSV file per record and prints a success message with the folder path.
 #'
-#' @importFrom writexl write_xlsx
 #' @export
 write_age_output_data <- function(out_data,
                             folder_path = syncer_output_dir(),
@@ -463,10 +463,17 @@ write_age_output_data <- function(out_data,
   # Convert all list elements to data frames
   records_list <- lapply(out_data, as.data.frame)
 
-  # Construct output filename
-  output_file <- file.path(folder_path, paste0("out_data_ages", synced, ".xlsx"))
+  # Construct output folder and make sure it exists
+  output_dir <- file.path(folder_path, paste0("out_data_ages", synced))
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+  }
 
-  # Write to Excel (one sheet per record)
-  writexl::write_xlsx(records_list, path = output_file)
-  cat("Data successfully exported to:", output_file, "\n")
+  # Write to CSV (one file per record)
+  for (record in names(records_list)) {
+    utils::write.csv(records_list[[record]],
+                      file = file.path(output_dir, paste0(record, ".csv")),
+                      row.names = FALSE)
+  }
+  cat("Data successfully exported to:", output_dir, "\n")
 }

@@ -4,33 +4,33 @@
 \alias{read_record_data}
 \title{Load age input data and event depths}
 \usage{
-read_record_data(folder_path = ".", file_name = "record_data_input.xlsx")
+read_record_data(folder_path = ".", file_name = "record_data_input")
 }
 \arguments{
 \item{folder_path}{Character string specifying the path to the folder containing your input file
 (default: \code{"."}, i.e. the working directory set by \code{syncer_setup()}).}
 
-\item{file_name}{Character string specifying the name of your input Excel file (default:
-\code{"record_data_input.xlsx"}). This workbook holds one \strong{sheet per record}, and
-each sheet gives, for every dated sample and for the record top, the \code{depth},
-\code{C14_age} and \code{C14_error}, together with the radiocarbon calibration curve code in
-the \code{cc} column (\code{0} = no calibration / calendar ages, \code{1} = IntCal20,
-\code{2} = Marine20, \code{3} = SHCal20). The sheet must also list the depths of the
-considered event deposits; these depths may be given either as event-free depth or as total
-depth.}
+\item{file_name}{Character string specifying the name of the subfolder (inside \code{folder_path})
+that holds your input CSV files (default: \code{"record_data_input"}). This folder holds one
+\strong{CSV file per record} (named \code{<record>.csv}), and each file gives, for every dated
+sample and for the record top, the \code{depth}, \code{C14_age} and \code{C14_error}, together
+with the radiocarbon calibration curve code in the \code{cc} column (\code{0} = no calibration /
+calendar ages, \code{1} = IntCal20, \code{2} = Marine20, \code{3} = SHCal20). The file must also
+list the depths of the considered event deposits; these depths may be given either as
+event-free depth or as total depth.}
 }
 \value{
 A named list with three elements:
 \itemize{
-\item \code{record_data}: Named list of data frames, one per record (each sheet becomes one element)
+\item \code{record_data}: Named list of data frames, one per record (each CSV file becomes one element)
 \item \code{max_depths}: Named numeric vector containing the maximum depth value for each record
 \item \code{sedrates}: Named numeric vector containing an estimated sedimentation rate for each record
 (calculated as oldest C14 age divided by its depth)
 }
 }
 \description{
-Loads age input dates (radiocarbon and/or 210Pb) and event depths of all records from an Excel file
-and calculates maximum depths and sedimentation rates for each record. The function reads all sheets
-from the Excel file, where each sheet represents one sediment record. For records missing required
-columns ('depth' or 'C14_age'), warnings are issued and NA values are returned.
+Loads age input dates (radiocarbon and/or 210Pb) and event depths of all records from a folder of
+CSV files and calculates maximum depths and sedimentation rates for each record. The function reads
+every \code{.csv} file in the folder, where each file represents one sediment record. For records
+missing required columns ('depth' or 'C14_age'), warnings are issued and NA values are returned.
 }

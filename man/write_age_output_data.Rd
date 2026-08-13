@@ -2,23 +2,24 @@
 % Please edit documentation in R/age-output.R
 \name{write_age_output_data}
 \alias{write_age_output_data}
-\title{Write age data (including event ages) into an Excel file}
+\title{Write age data (including event ages) into CSV files}
 \usage{
 write_age_output_data(out_data, folder_path = syncer_output_dir(), synced = "")
 }
 \arguments{
-\item{out_data}{Named list of data frames where each element will become a separate worksheet.}
+\item{out_data}{Named list of data frames where each element will become a separate CSV file.}
 
-\item{folder_path}{Character string specifying the location where the Excel file should be saved
+\item{folder_path}{Character string specifying the location where the output folder should be saved
 (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).}
 
-\item{synced}{Character string suffix for the output filename (default: "");
+\item{synced}{Character string suffix for the output folder name (default: "");
 use "_synced" for synchronized data.}
 }
 \value{
-No return value. Writes an Excel file and prints a success message with the file path.
+No return value. Writes one CSV file per record and prints a success message with the folder path.
 }
 \description{
-Each record age information (including event ages) is written to a separate sheet in the output Excel file, with
-sheet names matching the list element names, and each row represents a single MCMC simulation.
+Each record's age information (including event ages) is written to a separate CSV file inside an
+output folder, with file names matching the list element names, and each row represents a single
+MCMC simulation.
 }

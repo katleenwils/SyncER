@@ -41,7 +41,7 @@ cat("Reading bundled input from:\n  ", extdata,
     "\nWriting results to:\n  ", results_dir, "\n\n")
 
 # ── Input data (from the package distribution) ────────────────────────────────
-input       <- read_record_data(folder_path = extdata, file_name = "record_data_input.xlsx")
+input       <- read_record_data(folder_path = extdata, file_name = "record_data_input")
 record_data <- input$record_data
 max_depths  <- input$max_depths
 

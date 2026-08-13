@@ -529,25 +529,25 @@ assign_nonsynchro_age <- function(adjusted_ages,
 
 #' Load age input data and event depths
 #'
-#' Loads age input dates (radiocarbon and/or 210Pb) and event depths of all records from an Excel file 
-#' and calculates maximum depths and sedimentation rates for each record. The function reads all sheets 
-#' from the Excel file, where each sheet represents one sediment record. For records missing required 
-#' columns ('depth' or 'C14_age'), warnings are issued and NA values are returned.
+#' Loads age input dates (radiocarbon and/or 210Pb) and event depths of all records from a folder of
+#' CSV files and calculates maximum depths and sedimentation rates for each record. The function reads
+#' every \code{.csv} file in the folder, where each file represents one sediment record. For records
+#' missing required columns ('depth' or 'C14_age'), warnings are issued and NA values are returned.
 #'
 #' @param folder_path Character string specifying the path to the folder containing your input file
 #'   (default: \code{"."}, i.e. the working directory set by \code{syncer_setup()}).
-#' @param file_name Character string specifying the name of your input Excel file (default:
-#'   \code{"record_data_input.xlsx"}). This workbook holds one \strong{sheet per record}, and
-#'   each sheet gives, for every dated sample and for the record top, the \code{depth},
-#'   \code{C14_age} and \code{C14_error}, together with the radiocarbon calibration curve code in
-#'   the \code{cc} column (\code{0} = no calibration / calendar ages, \code{1} = IntCal20,
-#'   \code{2} = Marine20, \code{3} = SHCal20). The sheet must also list the depths of the
-#'   considered event deposits; these depths may be given either as event-free depth or as total
-#'   depth.
+#' @param file_name Character string specifying the name of the subfolder (inside \code{folder_path})
+#'   that holds your input CSV files (default: \code{"record_data_input"}). This folder holds one
+#'   \strong{CSV file per record} (named \code{<record>.csv}), and each file gives, for every dated
+#'   sample and for the record top, the \code{depth}, \code{C14_age} and \code{C14_error}, together
+#'   with the radiocarbon calibration curve code in the \code{cc} column (\code{0} = no calibration /
+#'   calendar ages, \code{1} = IntCal20, \code{2} = Marine20, \code{3} = SHCal20). The file must also
+#'   list the depths of the considered event deposits; these depths may be given either as
+#'   event-free depth or as total depth.
 #'
 #' @return A named list with three elements:
 #'   \itemize{
-#'     \item \code{record_data}: Named list of data frames, one per record (each sheet becomes one element)
+#'     \item \code{record_data}: Named list of data frames, one per record (each CSV file becomes one element)
 #'     \item \code{max_depths}: Named numeric vector containing the maximum depth value for each record
 #'     \item \code{sedrates}: Named numeric vector containing an estimated sedimentation rate for each record
 #'           (calculated as oldest C14 age divided by its depth)
@@ -555,13 +555,22 @@ assign_nonsynchro_age <- function(adjusted_ages,
 #'
 #' @export
 read_record_data <- function(folder_path = ".",
-                            file_name="record_data_input.xlsx") {
+                            file_name="record_data_input") {
 
-  # Construct full path to Excel file
-  excel_file <- file.path(folder_path, file_name)
+  # Construct full path to the folder holding one CSV file per record
+  input_dir <- file.path(folder_path, file_name)
 
-  # Get all sheet names (each sheet = one sediment record)
-  record_names <- readxl::excel_sheets(excel_file)
+  if (!dir.exists(input_dir)) {
+    stop(paste("Input folder not found:", input_dir))
+  }
+
+  # Get all CSV files (each file = one sediment record)
+  csv_files <- list.files(input_dir, pattern = "\\.csv$", full.names = TRUE)
+  record_names <- tools::file_path_sans_ext(basename(csv_files))
+
+  if (length(csv_files) == 0) {
+    stop(paste("No CSV files found in:", input_dir))
+  }
 
   # Initialize output structures
   record_data <- list()
@@ -571,10 +580,11 @@ read_record_data <- function(folder_path = ".",
   names(max_depths) <- record_names
   names(sedrates) <- record_names
 
-  # Process each record (sheet)
-  for (record in record_names) {
-    # Read sheet data
-    df <- readxl::read_excel(excel_file, sheet = record)
+  # Process each record (CSV file)
+  for (i in seq_along(record_names)) {
+    record <- record_names[i]
+    # Read CSV data
+    df <- utils::read.csv(csv_files[i], stringsAsFactors = FALSE)
     record_data[[record]] <- df
 
     # Extract maximum depth if 'depth' column exists
@@ -612,18 +622,18 @@ read_record_data <- function(folder_path = ".",
 
 #' Read age results of age-depth modelling for each of the event horizons
 #'
-#' Reads an Excel file containing all age information for events, consisting of a single 
-#' sheet per record and returns a named list of data frames.This is the inverse operation of 
+#' Reads a folder of CSV files containing all age information for events, one file per record,
+#' and returns a named list of data frames. This is the inverse operation of
 #' \code{write_age_output_data()}, and allows you to reload previously saved results without recalculating or 
 #' load age info into SyncER in case the age-depth models were not constructed using \emph{rbacon}/\emph{rplum}.
 #'
-#' @param folder_path Character string specifying the location of the Excel file to be read
+#' @param folder_path Character string specifying the location of the folder to be read
 #'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).
-#' @param synced Character string suffix for the input filename (default: "");
+#' @param synced Character string suffix for the input folder name (default: "");
 #'   use "_synced" for synchronized data.
 #'
 #' @return A named list of data frames, where each element corresponds to one record. 
-#' List names match the worksheet names.
+#' List names match the CSV file names (without extension).
 #'
 #' @examples
 #' \dontrun{
@@ -637,35 +647,39 @@ read_record_data <- function(folder_path = ".",
 #' event_stats <- process_event_ages(out_data, event_deposits = c("tephra", "flood"))
 #' }
 #'
-#' @importFrom readxl read_excel excel_sheets
 #' @export
 read_age_data <- function(folder_path = syncer_output_dir(),
                             synced = "") {
 
-  # Construct input filename
-  input_file <- file.path(folder_path, paste0("out_data_ages", synced, ".xlsx"))
+  # Construct input directory
+  input_dir <- file.path(folder_path, paste0("out_data_ages", synced))
 
-  # Check if file exists
-  if (!file.exists(input_file)) {
-    stop(paste("Excel file not found:", input_file))
+  # Check if folder exists
+  if (!dir.exists(input_dir)) {
+    stop(paste("Input folder not found:", input_dir))
   }
 
-  # Get all sheet names
-  sheet_names <- readxl::excel_sheets(input_file)
+  # Get all CSV files (each file = one record)
+  csv_files <- list.files(input_dir, pattern = "\\.csv$", full.names = TRUE)
+  record_names <- tools::file_path_sans_ext(basename(csv_files))
 
-  # Read all sheets into a named list
+  if (length(csv_files) == 0) {
+    stop(paste("No CSV files found in:", input_dir))
+  }
+
+  # Read all CSV files into a named list
   out_data <- setNames(
-    lapply(sheet_names, function(sheet) {
-      df <- readxl::read_excel(input_file, sheet = sheet)
+    lapply(csv_files, function(f) {
+      df <- utils::read.csv(f, stringsAsFactors = FALSE)
       if (!is.data.frame(df)) {
-        stop(paste("Sheet", sheet, "did not return a data frame"))
+        stop(paste("File", f, "did not return a data frame"))
       }
       return(df)
     }),
-    sheet_names
+    record_names
   )
 
-  cat("Data successfully read from:", input_file, "\n")
+  cat("Data successfully read from:", input_dir, "\n")
   cat("Loaded", length(out_data), "record(s):", paste(names(out_data), collapse = ", "), "\n")
 
   return(out_data)

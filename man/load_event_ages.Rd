@@ -41,7 +41,7 @@ synchronicity should be tested.}
 (default: \code{""}).}
 
 \item{reload_existing}{Logical; when \code{TRUE} reads from an already-exported
-Excel file instead of re-processing \code{.out} files (default: \code{FALSE}).}
+CSV folder instead of re-processing \code{.out} files (default: \code{FALSE}).}
 
 \item{instantaneous_event_depths}{Optional named list of depth intervals classified as instantaneous deposits per record
 that should not be considered for event-free depths.}
@@ -51,7 +51,7 @@ single numeric, named list per record, or \code{NULL} (default), in which case
 it is derived per record from the model as \code{max_depths[record] / (n_cols - 3)}.}
 
 \item{output_dir}{Character string specifying where the previously-exported
-\code{out_data_ages.xlsx} lives; only used when \code{reload_existing = TRUE}
+\code{out_data_ages} folder lives; only used when \code{reload_existing = TRUE}
 (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in
 the working directory).}
 }
@@ -63,5 +63,5 @@ columns plus one column per event with interpolated ages.
 Wrapper function that reads \emph{rbacon}/\emph{rplum} \code{.out} files and returns a named list of
 processed event ages. Combines \code{read_age_model_output()} and
 \code{compute_event_ages()} into a single call. When \code{reload_existing}
-is \code{TRUE}, the previously exported Excel file is returned instead.
+is \code{TRUE}, the previously exported CSV folder is returned instead.
 }

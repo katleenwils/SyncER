@@ -7,19 +7,19 @@
 read_age_data(folder_path = syncer_output_dir(), synced = "")
 }
 \arguments{
-\item{folder_path}{Character string specifying the location of the Excel file to be read
+\item{folder_path}{Character string specifying the location of the folder to be read
 (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).}
 
-\item{synced}{Character string suffix for the input filename (default: "");
+\item{synced}{Character string suffix for the input folder name (default: "");
 use "_synced" for synchronized data.}
 }
 \value{
 A named list of data frames, where each element corresponds to one record.
-List names match the worksheet names.
+List names match the CSV file names (without extension).
 }
 \description{
-Reads an Excel file containing all age information for events, consisting of a single
-sheet per record and returns a named list of data frames.This is the inverse operation of
+Reads a folder of CSV files containing all age information for events, one file per record,
+and returns a named list of data frames. This is the inverse operation of
 \code{write_age_output_data()}, and allows you to reload previously saved results without recalculating or
 load age info into SyncER in case the age-depth models were not constructed using \emph{rbacon}/\emph{rplum}.
 }
