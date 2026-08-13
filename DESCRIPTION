@@ -4,18 +4,16 @@ Version: 0.1.0
 Authors@R: person("Katleen", "Wils", email = "katleen.wils@ugent.be",
                   role = c("aut", "cre"))
 Description: SyncER allows for evaluation of synchronous deposition across different event records using a log-ratio approach. Additionally, it allows syncing age-depth models based on the availability of isochrons.
-License: GPL-3
+License: GPL (>= 3)
 URL: https://github.com/katleenwils/SyncER
 BugReports: https://github.com/katleenwils/SyncER/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Imports:
-    readxl,
     dplyr,
     magrittr,
     stringr,
     readr,
-    writexl,
     ggplot2,
     pracma
 Suggests:
