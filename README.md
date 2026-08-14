@@ -26,9 +26,16 @@ remotes::install_github("katleenwils/SyncER")
 library(SyncER)
 ```
 
+Once *SyncER* is available on CRAN, you can use the following commands:
+
+```{r SyncER-install}
+install.packages("SyncER")
+library(SyncER)
+```
+
 #### Reporting bugs
 
-If you run into a problem or unexpected behaviour, please open an issue on the [GitHub issue tracker](https://github.com/katleenwils/SyncER/issues) or contact the developer. Questions and suggestions are welcome there too, and will be accomodated as much as reasonably possible. A report is most useful when it includes:
+If you run into a problem or unexpected behaviour, please open an issue on the [GitHub issue tracker](https://github.com/katleenwils/SyncER/issues) or contact the developer. Questions and suggestions are welcome there too, and will be accommodated as much as reasonably possible. A report is most useful when it includes:
 
 - the version of *SyncER* you are running (`packageVersion("SyncER")`),
 - the output of `sessionInfo()`,

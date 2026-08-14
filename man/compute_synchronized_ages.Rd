@@ -115,7 +115,7 @@ Named list with two elements:
 \item \code{adjusted_ages}: Named list of data frames (one per horizon) with columns
 \code{record}, \code{adjusted_age}, \code{adjusted_error}, \code{cc}
 \item \code{bayesian_plot_data}: Named list (one entry per Bayesian horizon) with
-raw plot data — pass each element to \code{plot_bayesian_age_combination()} to
+raw plot data - pass each element to \code{plot_bayesian_age_combination()} to
 draw to the console or save a PDF
 }
 }

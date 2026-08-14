@@ -160,7 +160,7 @@ for (record in names(record_data)){
 
 Extract the ages of the event deposits in each record and export them to the `out_data_ages/` folder.
 
-```{r extract-ages}
+```{r what -ages}
 reload_existing <- FALSE ## FALSE processes the bundled .out files and creates out_data_ages/; set TRUE on later runs to reuse an existing out_data_ages/
 event_ages <- load_event_ages(record_data = record_data, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, reload_existing = reload_existing, instantaneous_event_depths=event_depths, thick = 2 ## set to the thick value used in Bacon/Plum, single value or as list (for example: list("core1" = 2, "core3 = 1))
                            )
@@ -190,7 +190,7 @@ isochron_results <- verify_synchronicity(isochron_synchro, isochrons, isochron=T
 
 For each unique pair of records in which the considered horizons (here: isochrons) are present, the synchronicity score is calculated and saved in the `*_stats.csv` file (synchronicity_score column), where the \* is replaced by the name of the horizons you are testing. Additionally, an overall synchronicity score per tested horizon is also calculated. A test summary where the number of fails (the desired `confidence_level` cannot be reached for the given `age_difference`) and test passes (the desired `confidence_level` can be reached for the given `age_difference`) is printed in-line.
 
-In theory, also the age difference between both records that is needed to achieve a synchronicity score of `confidence_level` can be calculated (synchronicity precision). However, direct calculation of tthe synchronicity precision is no longer an assumption-free test and the outcome strongly depends on the distribution of the data. It is thus only calculated in case some quality criteria are met, in which case it is also given in the `*_stats.csv` file (synchronicity_precision column). An alternative way to approximate the time interval within which the desired `confidence_level` for synchronicity can be reached would be to calculate the synchronicity score for systematically larger `age_difference` values until the desired `confidence_level` is reached.
+In theory, also the age difference between both records that is needed to achieve a synchronicity score of `confidence_level` can be calculated (synchronicity precision). However, direct calculation of the synchronicity precision is no longer an assumption-free test and the outcome strongly depends on the distribution of the data. It is thus only calculated in case some quality criteria are met, in which case it is also given in the `*_stats.csv` file (synchronicity_precision column). An alternative way to approximate the time interval within which the desired `confidence_level` for synchronicity can be reached would be to calculate the synchronicity score for systematically larger `age_difference` values until the desired `confidence_level` is reached.
 
 ## Step 4: Set age difference of isochrons to zero
 

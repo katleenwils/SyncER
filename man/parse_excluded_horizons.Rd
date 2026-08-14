@@ -2,7 +2,7 @@
 % Please edit documentation in R/synchronicity-helpers.R
 \name{parse_excluded_horizons}
 \alias{parse_excluded_horizons}
-\title{Seperate per-record excluded horizons from globally excluded horizons}
+\title{Separate per-record excluded horizons from globally excluded horizons}
 \usage{
 parse_excluded_horizons(nonsynchro_horizons, all_records)
 }

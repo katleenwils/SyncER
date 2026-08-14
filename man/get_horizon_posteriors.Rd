@@ -2,7 +2,7 @@
 % Please edit documentation in R/synchronicity-helpers.R
 \name{get_horizon_posteriors}
 \alias{get_horizon_posteriors}
-\title{Retreve posterior age Samples for a horizon group across all records}
+\title{Retrieve posterior age Samples for a horizon group across all records}
 \usage{
 get_horizon_posteriors(
   records_with_horizon,

@@ -48,7 +48,7 @@ syncer_setup <- function(wd = getOption("SyncER.wd")) {
 #'
 #' @keywords internal
 syncer_output_dir <- function() {
-  base_dir <- getOption("SyncER.wd", unset = tempdir())
+  base_dir <- getOption("SyncER.wd", default = tempdir())
   out_dir <- file.path(base_dir, "SyncER_outputs")
   if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
   out_dir

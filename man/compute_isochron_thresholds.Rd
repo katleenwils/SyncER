@@ -41,7 +41,7 @@ Calculates empirically-based validation thresholds and confidence levels from sy
 age data for use in subsequent synchronicity testing. Calculates the coefficient of variation (CV = sigma/mu) from synchronized ages,
 multiplies by user-specified sigma values to generate age difference thresholds, and
 converts sigma values to confidence levels using the standard normal distribution.
-The age offset is added before calculating CV to ensure consistency accross calculations.
+The age offset is added before calculating CV to ensure consistency across calculations.
 These thresholds can be directly used in \code{verify_synchronicity()} for synchronicity testing.
 }
 \examples{
