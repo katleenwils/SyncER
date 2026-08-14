@@ -10,10 +10,11 @@ syncer_output_dir()
 Character string: path to the \code{SyncER_outputs} directory.
 }
 \description{
-Returns the path to the \code{SyncER_outputs} folder inside the current
-working directory, creating it if it does not already exist. Every \emph{SyncER}
-function that writes files (CSVs, PDFs) defaults its
-output-location argument to this folder, so that all package output ends
-up in one predictable place unless the user explicitly overrides it.
+Returns the path to the \code{SyncER_outputs} folder, creating it if it does not already exist.
+Every \emph{SyncER} function that writes files (CSVs, PDFs) defaults its output-location argument
+to this folder, so that all package output ends up in one predictable place unless the user
+explicitly overrides it. If \code{\link{syncer_setup}} has been called earlier in the session, that
+chosen directory is used; otherwise this defaults to a subfolder of \code{tempdir()}, so that
+\emph{SyncER} never writes to the user's file space without being asked to.
 }
 \keyword{internal}

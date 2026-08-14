@@ -18,5 +18,8 @@ Invisibly returns the path to the \code{SyncER_outputs} directory.
 \description{
 Sets the working directory \emph{SyncER} should use, and ensures a \code{SyncER_outputs} folder exists there
 for output files. Call it yourself once, after \code{library(SyncER)}, at the top of your analysis
-script.
+script. The chosen directory is remembered (via \code{options(SyncER.wd = ...)}) and used as the
+default output location by every other \emph{SyncER} function for the rest of the session. If you
+never call this function, those functions default to a per-session temporary directory instead
+(see \code{\link{syncer_output_dir}}).
 }

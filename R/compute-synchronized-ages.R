@@ -81,7 +81,7 @@
 #'     \item \code{adjusted_ages}: Named list of data frames (one per horizon) with columns
 #'           \code{record}, \code{adjusted_age}, \code{adjusted_error}, \code{cc}
 #'     \item \code{bayesian_plot_data}: Named list (one entry per Bayesian horizon) with
-#'           raw plot data — pass each element to \code{plot_bayesian_age_combination()} to
+#'           raw plot data - pass each element to \code{plot_bayesian_age_combination()} to
 #'           draw to the console or save a PDF
 #'   }
 #'
@@ -230,7 +230,7 @@ compute_synchronized_ages <- function(event_stats,
     }
   }
 
-  # Initialize output: list of horizon → data.frame
+  # Initialize output: list of horizon -> data.frame
   adjusted_ages <- list()
 
   # Track which generic groups have been processed
@@ -239,7 +239,7 @@ compute_synchronized_ages <- function(event_stats,
   # Remove globally excluded horizons from iteration list
   all_horizons <- setdiff(all_horizons, global_excluded)
 
-  # Build reverse lookup: horizon_name → group_name (from user-supplied horizon_groups)
+  # Build reverse lookup: horizon_name -> group_name (from user-supplied horizon_groups)
   group_of <- build_group_lookup(horizon_groups)
 
   if (!is.null(horizons)) {

@@ -32,12 +32,12 @@ build_age_input <- function(record_data,
                               adjusted_ages = NULL,
                               original_ages = TRUE) {
 
-  # ── Check if Pb210 data is present ────────────────────────────────────────
+  # -- Check if Pb210 data is present ----------------------------------------
   has_lead <- !is.null(lead_sample_names) &&
     length(lead_sample_names) > 0 &&
     any(record_data$event %in% lead_sample_names)
 
-  # ── 1. RADIOCARBON data frame ──────────────────────────────────────────────
+  # -- 1. RADIOCARBON data frame ----------------------------------------------
   sample_events <- record_data %>%
     dplyr::filter(event %in% radiocarbon_sample_names) %>%
     dplyr::select(depth, C14_age, C14_error, cc,
@@ -82,7 +82,7 @@ build_age_input <- function(record_data,
     }
   }
 
-  # Resolve original_ages for this record: named vector → look up by record_name
+  # Resolve original_ages for this record: named vector -> look up by record_name
   use_original_ages <- if (!is.null(names(original_ages)) && record_name %in% names(original_ages)) {
     isTRUE(original_ages[[record_name]])
   } else {
@@ -134,7 +134,7 @@ build_age_input <- function(record_data,
 
   sample_events <- sample_events[order(sample_events$depth), ]
 
-  # ── 2. Pb210 data frame (rplum / HP1C format) ─────────────────────────────
+  # -- 2. Pb210 data frame (rplum / HP1C format) -----------------------------
   lead_df <- NULL
   if (has_lead) {
 
