@@ -8,7 +8,7 @@ This notebook presents the *SyncER* workflow by illustrating the different steps
 
 When using *SyncER*, cite the following paper:
 
-> Wils, K, Ramisch, A. (2026) SyncER: Synchronicity testing for Event Records using tied age-depth models. *Scientific Reports.*
+> Wils, K, Ramisch, A. (2026) Synchronicity testing for Event Records (SyncER) using log-ratios and tied age-depth models. *Scientific Reports.*
 
 If you make use of the built-in compatibility with *rbacon* for age-depth modelling, you should also cite the original reference for this package:
 
