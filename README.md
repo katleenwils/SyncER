@@ -12,7 +12,7 @@ When using *SyncER*, cite the following paper:
 
 If you make use of the built-in compatibility with *rbacon* for age-depth modelling, you should also cite the original reference for this package:
 
-> Blaauw M, Christen JA. (2011) Flexible paleoclimate age-depth models using an autoregressive gamma process. *Bayesian Analysis* 6 (3), 457-474. DOI: 10.1214/11-ba618.
+> Blaauw M, Christen J.A. (2011) Flexible paleoclimate age-depth models using an autoregressive gamma process. *Bayesian Analysis* 6 (3), 457-474. DOI: 10.1214/11-ba618.
 
 If you make use of the built-in compatibility with *rplum* for age-depth modelling, you should cite the above reference for *rbacon* as well as the one below:
 
