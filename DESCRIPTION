@@ -1,5 +1,5 @@
 Package: SyncER
-Title: Synchronicity testing for Event Records
+Title: Synchronicity Testing for Event Records
 Version: 1.0.0
 Authors@R: person("Katleen", "Wils", email = "katleen.wils@ugent.be",
                   role = c("aut", "cre"))
