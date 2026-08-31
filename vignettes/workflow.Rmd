@@ -417,7 +417,7 @@ After running the age models, you can proceed with extracting the age informatio
 
 Example:
 
-*event_ages_synced_1 \<- load_event_ages(record_data = record_data_synced_1, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, synced = "synced_1",reload_existing = FALSE, thick = 2) \
+*event_ages_synced_1 \<- load_event_ages(record_data = record_data_synced_1, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, synced = "synced_1",reload_existing = FALSE, thick = 2)\
 write_age_output_data(event_ages_synced_1, synced = "synced_1")*
 
 You could iteratively keep synchronizing new horizons by re-running step 6 and this step again, each time passing the latest `record_data_synced_N` into `age_model_input()`. This creates the next numbered generation (`_synced_2`, `_synced_3`, ...) and returns the record_data to carry into the following iteration.
