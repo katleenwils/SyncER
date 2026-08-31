@@ -161,7 +161,7 @@ for (record in names(record_data)){
 Extract the ages of the event deposits in each record and export them to the `out_data_ages/` folder.
 
 ```{r what -ages}
-reload_existing <- FALSE ## FALSE processes the bundled .out files and creates out_data_ages/; set TRUE on later runs to reuse an existing out_data_ages/
+reload_existing <- TRUE ## FALSE processes the bundled .out files and creates out_data_ages/; set TRUE to reuse an existing out_data_ages/
 event_ages <- load_event_ages(record_data = record_data, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, reload_existing = reload_existing, instantaneous_event_depths=event_depths, thick = 2 ## set to the thick value used in Bacon/Plum, single value or as list (for example: list("core1" = 2, "core3 = 1))
                            )
 if (!reload_existing) {
@@ -281,7 +281,7 @@ for (record_synced in names(record_data_synced)){
 After constructing the new age-depth models, extract the ages of the different event deposits in each synchronized record and export them to the `out_data_ages_synced/` folder.
 
 ```{r extract-synced-ages}
-reload_existing <- FALSE ## FALSE processes the bundled _synced .out files and creates out_data_ages_synced/; set TRUE on later runs to reuse an existing folder
+reload_existing <- TRUE ## FALSE processes the bundled _synced .out files and creates out_data_ages_synced/; TRUE to reuse an existing folder
 event_ages_synced <- load_event_ages(record_data = record_data, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, synced = "_synced", reload_existing = reload_existing, thick = 2)
 if (!reload_existing) {
   write_age_output_data(event_ages_synced, synced="_synced")}
@@ -413,11 +413,11 @@ for (record_synced_1 in names(record_data_synced_1)){
 }
 ```
 
-After running the age models, you can proceed with extracting the age information as before, and return to step 6 to evaluate synchronicity of additional deposits by considering the `event_ages_synced2` variable calculated below as input for the `process_event_ages()` function.
+After running the age models, you can proceed with extracting the age information as before, and return to step 6 to evaluate synchronicity of additional deposits by considering the `event_ages_synced1` variable calculated below as input for the `process_event_ages()` function.
 
-```{r extract-synced-ages-adjusted}
-event_ages_synced_1 <- load_event_ages(record_data = record_data_synced_1, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, synced = "synced_1",reload_existing = FALSE, thick = 2)
-write_age_output_data(event_ages_synced_1, synced = "synced_1")
-```
+Example:
+
+*event_ages_synced_1 \<- load_event_ages(record_data = record_data_synced_1, event_types = event_types, max_depths = max_depths, isochrons = isochrons, test_horizons = test_events, synced = "synced_1",reload_existing = FALSE, thick = 2) \
+write_age_output_data(event_ages_synced_1, synced = "synced_1")*
 
 You could iteratively keep synchronizing new horizons by re-running step 6 and this step again, each time passing the latest `record_data_synced_N` into `age_model_input()`. This creates the next numbered generation (`_synced_2`, `_synced_3`, ...) and returns the record_data to carry into the following iteration.
