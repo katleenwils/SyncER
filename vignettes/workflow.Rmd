@@ -23,6 +23,21 @@ example_dir <- system.file("extdata", package = "SyncER")
 invisible(file.copy(list.files(example_dir, full.names = TRUE), syncer_wd,
                     recursive = TRUE, overwrite = TRUE))
 
+# Extract csv files from input .rda data 
+restore_csv_dir <- function(rda_file, target_dir) {
+  dir.create(target_dir, recursive = TRUE, showWarnings = FALSE)
+  e <- new.env(); load(rda_file, envir = e)
+  for (nm in names(e$data_list)) {
+    write.csv(e$data_list[[nm]], file.path(target_dir, paste0(nm, ".csv")),
+              row.names = FALSE)
+  }
+}
+
+restore_csv_dir(system.file("extdata", "out_data_ages.rda", package = "SyncER"),
+                file.path(syncer_wd, "SyncER_outputs", "out_data_ages"))
+restore_csv_dir(system.file("extdata", "out_data_ages_synced.rda", package = "SyncER"),
+                file.path(syncer_wd, "SyncER_outputs", "out_data_ages_synced"))
+
 # Run every following chunk from that folder.
 knitr::opts_knit$set(root.dir = syncer_wd)
 ```
