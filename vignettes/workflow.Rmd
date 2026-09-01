@@ -23,7 +23,7 @@ example_dir <- system.file("extdata", package = "SyncER")
 invisible(file.copy(list.files(example_dir, full.names = TRUE), syncer_wd,
                     recursive = TRUE, overwrite = TRUE))
 
-# Extract csv files from input .rda data 
+# Extract input .rda data 
 restore_csv_dir <- function(rda_file, target_dir) {
   dir.create(target_dir, recursive = TRUE, showWarnings = FALSE)
   e <- new.env(); load(rda_file, envir = e)
@@ -33,6 +33,17 @@ restore_csv_dir <- function(rda_file, target_dir) {
   }
 }
 
+restore_out_files <- function(rda_file, target_base_dir) {
+  e <- new.env(); load(rda_file, envir = e)
+  for (rel_path in names(e$out_data)) {
+    full_path <- file.path(target_base_dir, rel_path)
+    dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
+    readr::write_lines(e$out_data[[rel_path]], full_path)
+  }
+}
+
+restore_out_files(system.file("extdata", "bacon_out_files.rda", package = "SyncER"),
+                  syncer_wd)
 restore_csv_dir(system.file("extdata", "out_data_ages.rda", package = "SyncER"),
                 file.path(syncer_wd, "SyncER_outputs", "out_data_ages"))
 restore_csv_dir(system.file("extdata", "out_data_ages_synced.rda", package = "SyncER"),
@@ -251,7 +262,7 @@ record_data_synced <- age_model_input(record_data, adjusted_ages,
                                        radiocarbon_sample_names = radiocarbon_sample_names, lead_sample_names = lead_sample_names, original_ages = TRUE) #Set original_ages = FALSE if you don't want the age-depth models to also use the original (radiocarbon) ages; you can adjust this per record (e.g. if one record has bad accuracy) by passing c("core1" = FALSE). Records not listed fall back to TRUE.
 ```
 
-As in step 2, actually (re)running *rbacon*/*rplum* here is gated by `run_age` (see step 2) as the `Example` dataset already includes completed `_synced` runs.
+As in step 2, actually (re)running *rbacon*/*rplum* here is gated by `run_age` (see step 2) as the `Example` dataset already includes completed `_synced` runs. If you want to use the age-depth models for which the original 14C age information is excluded, make sure to change the record names by running `names(record_data_synced) <- paste0(names(record_data_synced), "_without14").`
 
 ```{r create-synced-age-models}
 if (run_age) {
