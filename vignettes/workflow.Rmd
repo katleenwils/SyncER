@@ -15,10 +15,9 @@ library(SyncER)
 
 ```{r setup}
 # --- Choose where this example should run ------------------------------------
-syncer_wd <- file.path(path.expand("~"), "SyncER_example")
+syncer_wd <- file.path(tempdir(), "SyncER_example")
 
-# Copy the bundled input folder (record_data_input/) and the Bacon .out files
-# (in the core* folders) from the installed package into syncer_wd.
+# Copy the bundled input files from the installed package into syncer_wd.
 dir.create(syncer_wd, recursive = TRUE, showWarnings = FALSE)
 example_dir <- system.file("extdata", package = "SyncER")
 invisible(file.copy(list.files(example_dir, full.names = TRUE), syncer_wd,
