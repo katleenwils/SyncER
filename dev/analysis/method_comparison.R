@@ -9,9 +9,9 @@
 # It runs ONLY the cross-method comparison across event deposits. It does NOT
 # run the SyncER synchronisation pipeline (age-depth model input, tie-point
 # synchronisation, or re-running Bacon) -- that pipeline is documented in the
-# package vignette (workflow.Rmd). All input here is taken from the installed
-# package distribution (inst/extdata): the synthetic record data and the Bacon
-# age-depth output for each core, both raw (core*) and synchronised (core*_synced).
+# package vignette (workflow.Rmd). All input here is taken from the SyncERdata
+# companion package: the synthetic record data and the Bacon age-depth output
+# for each core, both raw (core*) and synchronised (core*_synced).
 #
 # SyncER's SS is computed through the package (compute_overall_synchronicity);
 # the alternative methods live in other_tests.R (sourced below).
@@ -32,15 +32,30 @@ source(system.file("analysis", "other_tests.R", package = "SyncER"))
 `%||%` <- function(a, b) if (!is.null(a) && length(a) == 1 && !is.na(a)) a else b
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-# Input comes from the installed package; results go to a writable directory.
-# Change results_dir if you want the CSVs somewhere permanent.
-extdata     <- system.file("extdata", package = "SyncER")
+# Input is rebuilt from the SyncERdata companion package; results go to a
+# writable directory. Change results_dir if you want the CSVs somewhere permanent.
+if (!requireNamespace("SyncERdata", quietly = TRUE)) {
+  stop("This script needs the SyncERdata companion package: ",
+       'install.packages("SyncERdata")', call. = FALSE)
+}
+
+extdata <- file.path(tempdir(), "SyncER_method_comparison_input")
+dir.create(file.path(extdata, "record_data_input"), recursive = TRUE, showWarnings = FALSE)
+csv_dir <- system.file("extdata", "record_data_input", package = "SyncERdata")
+file.copy(list.files(csv_dir, full.names = TRUE),
+          file.path(extdata, "record_data_input"), overwrite = TRUE)
+for (rel_path in names(SyncERdata::bacon_out_files)) {
+  full_path <- file.path(extdata, rel_path)
+  dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
+  writeLines(SyncERdata::bacon_out_files[[rel_path]], full_path)
+}
+
 results_dir <- file.path(tempdir(), "SyncER_method_comparison")
 dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
 cat("Reading bundled input from:\n  ", extdata,
     "\nWriting results to:\n  ", results_dir, "\n\n")
 
-# ── Input data (from the package distribution) ────────────────────────────────
+# ── Input data (rebuilt from SyncERdata) ───────────────────────────────────────
 input       <- read_record_data(folder_path = extdata, file_name = "record_data_input")
 record_data <- input$record_data
 max_depths  <- input$max_depths
@@ -75,7 +90,8 @@ datums_to_test   <- seq(0, 1000, by = 100) # datums at which SS is scored (ss_pa
 
 # ── Event ages from the bundled Bacon output ──────────────────────────────────
 # No Bacon re-run is needed: the raw (core*) and synchronised (core*_synced)
-# model output is included in inst/extdata, so load_event_ages() reads it directly.
+# model output was rebuilt above from SyncERdata::bacon_out_files, so
+# load_event_ages() reads it directly.
 event_ages <- load_event_ages(
   folder_path = extdata, record_data = record_data, event_types = event_types,
   max_depths = max_depths, isochrons = isochrons, test_horizons = test_events,

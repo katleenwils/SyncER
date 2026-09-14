@@ -1,5 +1,6 @@
-# End-to-end test on the BUNDLED example dataset, starting from the files that
-# actually ship with the package: record_data_input and the Bacon .out files.
+# End-to-end test on the BUNDLED example dataset, starting from the files
+# shipped by the SyncERdata companion package (Suggests): record_data_input
+# and the Bacon .out files.
 #
 # Full pipeline exercised (no Bacon run, no rbacon needed -- load_event_ages() reads
 # the .out files directly and interpolates deterministically):
@@ -18,18 +19,33 @@
 # absorb the small score drift this introduces from one year to the next.
 REF_OFFSET <- bp_datum()
 
-# Locate a directory holding the shipped inputs: record_data_input alongside
-# per-record Bacon folders (core1/, ...) that contain .out files. Prefers an
-# installed inst/extdata/ copy (works under R CMD check); falls back to the
-# source-tree Example/ folder.
+# Rebuild a directory holding the shipped inputs -- record_data_input alongside
+# per-record Bacon folders (core1/, ...) containing .out files -- from the
+# SyncERdata companion package (Suggests). Returns NA if SyncERdata isn't
+# installed, or as a fallback the source-tree Example/ folder if present.
 find_example_dir <- function() {
   has_inputs <- function(d) {
     nzchar(d) &&
       file.exists(file.path(d, "record_data_input")) &&
       length(list.files(d, pattern = "[0-9]\\.out$", recursive = TRUE)) > 0
   }
-  installed <- system.file("extdata", package = "SyncER")
-  if (has_inputs(installed)) return(installed)
+
+  if (requireNamespace("SyncERdata", quietly = TRUE)) {
+    dir <- file.path(tempdir(), "SyncER_test_bundled")
+    dir.create(file.path(dir, "record_data_input"), recursive = TRUE, showWarnings = FALSE)
+    csv_dir <- system.file("extdata", "record_data_input", package = "SyncERdata")
+    file.copy(list.files(csv_dir, full.names = TRUE),
+              file.path(dir, "record_data_input"), overwrite = TRUE)
+
+    out_data <- SyncERdata::bacon_out_files
+    for (rel_path in names(out_data)) {
+      full_path <- file.path(dir, rel_path)
+      dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
+      writeLines(out_data[[rel_path]], full_path)
+    }
+    if (has_inputs(dir)) return(dir)
+  }
+
   candidates <- c(
     testthat::test_path("..", "..", "Example"),
     testthat::test_path("..", "..", "..", "Example")
@@ -78,7 +94,7 @@ test_that("bundled run: .out files -> event ages -> synchronicity scores", {
   skip_on_cran()
   dir <- find_example_dir()
   skip_if(is.na(dir),
-          "Bundled record_data_input + .out files not found; ship them in inst/extdata to enable.")
+          "Bundled record_data_input + .out files not found; install the SyncERdata package to enable.")
 
   event_stats <- build_event_stats(dir)
 
@@ -125,7 +141,7 @@ test_that("bundled run is reproducible across repeated compute calls", {
   skip_on_cran()
   dir <- find_example_dir()
   skip_if(is.na(dir),
-          "Bundled record_data_input + .out files not found; ship them in inst/extdata to enable.")
+          "Bundled record_data_input + .out files not found; install the SyncERdata package to enable.")
 
   event_stats <- build_event_stats(dir)
   expect_equal(run_compute(event_stats)$all_horizon_stats,

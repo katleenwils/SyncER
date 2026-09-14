@@ -13,40 +13,57 @@ vignette: >
 library(SyncER)
 ```
 
+```{r check-data, include = FALSE}
+# The example dataset used throughout this vignette lives in the companion
+# SyncERdata package (Suggests), so make sure to install that before running this vignette workflow.
+has_data <- requireNamespace("SyncERdata", quietly = TRUE)
+knitr::opts_chunk$set(eval = has_data)
+```
+
+```{r data-missing-notice, echo = FALSE, eval = !has_data, results = "asis"}
+cat(
+  "_The `SyncERdata` package, which provides this vignette's example",
+  "dataset, is not installed. Install it with",
+  "`install.packages(\"SyncERdata\")` to run the rest of this walkthrough",
+  "locally; the explanatory text below still applies to your own data._"
+)
+```
+
 ```{r setup}
 # --- Choose where this example should run ------------------------------------
 syncer_wd <- file.path(tempdir(), "SyncER_example")
-
-# Copy the bundled input files from the installed package into syncer_wd.
 dir.create(syncer_wd, recursive = TRUE, showWarnings = FALSE)
-example_dir <- system.file("extdata", package = "SyncER")
-invisible(file.copy(list.files(example_dir, full.names = TRUE), syncer_wd,
-                    recursive = TRUE, overwrite = TRUE))
 
-# Extract input .rda data 
-restore_csv_dir <- function(rda_file, target_dir) {
+# Copy the raw input CSVs bundled in SyncERdata into syncer_wd.
+example_dir <- system.file("extdata", "record_data_input", package = "SyncERdata")
+dir.create(file.path(syncer_wd, "record_data_input"), showWarnings = FALSE)
+invisible(file.copy(list.files(example_dir, full.names = TRUE),
+                    file.path(syncer_wd, "record_data_input"), overwrite = TRUE))
+
+# Restore the completed Bacon/Plum model output shipped as SyncERdata::bacon_out_files
+# (a named list of file lines, keyed by relative output path) back to real files.
+restore_out_files <- function(out_data, target_base_dir) {
+  for (rel_path in names(out_data)) {
+    full_path <- file.path(target_base_dir, rel_path)
+    dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
+    readr::write_lines(out_data[[rel_path]], full_path)
+  }
+}
+
+# Restore the posterior age-sample tables shipped as SyncERdata list-of-data-frames
+# objects back to one CSV per record.
+restore_csv_dir <- function(data_list, target_dir) {
   dir.create(target_dir, recursive = TRUE, showWarnings = FALSE)
-  e <- new.env(); load(rda_file, envir = e)
-  for (nm in names(e$data_list)) {
-    write.csv(e$data_list[[nm]], file.path(target_dir, paste0(nm, ".csv")),
+  for (nm in names(data_list)) {
+    write.csv(data_list[[nm]], file.path(target_dir, paste0(nm, ".csv")),
               row.names = FALSE)
   }
 }
 
-restore_out_files <- function(rda_file, target_base_dir) {
-  e <- new.env(); load(rda_file, envir = e)
-  for (rel_path in names(e$out_data)) {
-    full_path <- file.path(target_base_dir, rel_path)
-    dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
-    readr::write_lines(e$out_data[[rel_path]], full_path)
-  }
-}
-
-restore_out_files(system.file("extdata", "bacon_out_files.rda", package = "SyncER"),
-                  syncer_wd)
-restore_csv_dir(system.file("extdata", "out_data_ages.rda", package = "SyncER"),
+restore_out_files(SyncERdata::bacon_out_files, syncer_wd)
+restore_csv_dir(SyncERdata::out_data_ages,
                 file.path(syncer_wd, "SyncER_outputs", "out_data_ages"))
-restore_csv_dir(system.file("extdata", "out_data_ages_synced.rda", package = "SyncER"),
+restore_csv_dir(SyncERdata::out_data_ages_synced,
                 file.path(syncer_wd, "SyncER_outputs", "out_data_ages_synced"))
 
 # Run every following chunk from that folder.

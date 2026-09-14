@@ -20,7 +20,7 @@ source("dev/analysis/method_comparison.R")
 
 ## Running the comparison
 
-`method_comparison.R` is self-contained: it takes **all input from the installed package** (`inst/extdata`) — the synthetic record data (`record_data_input`) and the Bacon age–depth model output for every core, both raw (`core*`) and synchronised (`core*_synced`).
+`method_comparison.R` is self-contained: it takes **all input from the SyncERdata companion package** (`Suggests`) — the synthetic record data (`record_data_input`) and the Bacon age–depth model output for every core, both raw (`core*`) and synchronised (`core*_synced`). Install it first with `install.packages("SyncERdata")`.
 
 ``` r
 source("dev/analysis/method_comparison.R")
@@ -43,4 +43,4 @@ Beyond SyncER itself, these scripts use: `overlapping`, `dplyr`, `tidyr` (compar
 ## Reproducibility notes
 
 - `generate_dataset.R` and the synchronicity score Monte Carlo use fixed seeds, so those steps are deterministic.
-- Bacon age–depth modelling is **not** deterministic across runs, so the exact posterior ages depend on the specific Bacon run. The Bacon output used for the manuscript is bundled in `inst/extdata`; `method_comparison.R` reads it directly so its results are reproducible without re-running Bacon.
+- Bacon age–depth modelling is **not** deterministic across runs, so the exact posterior ages depend on the specific Bacon run. The Bacon output used for the manuscript is bundled in the SyncERdata companion package; `method_comparison.R` reads it directly so its results are reproducible without re-running Bacon.
