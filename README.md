@@ -4,7 +4,7 @@
 
 *SyncER* is a toolbox developed to **sync**hronize age-depth models and evaluate the potential synchronous deposition of correlated **event** deposits between geological **records**.
 
-This notebook presents the *SyncER* workflow by illustrating the different steps on a synthetic test dataset. You can adjust the executable cells to apply it to your own dataset, but it is recommendable to instead copy the different steps to your personal R script for execution.
+The vignette notebook presents the *SyncER* workflow by illustrating the different steps on a synthetic test dataset. This dataset is available as a seperate R package, *SyncERdata*. You can adjust the executable cells to apply it to your own dataset, but it is recommendable to instead copy the different steps to your personal R script for execution.
 
 When using *SyncER*, cite the following paper:
 
@@ -18,11 +18,12 @@ If you make use of the built-in compatibility with *rplum* for age-depth modelli
 
 > Aquino-López, M. A., Blaauw, M., Christen, J.A., and Sanderson, N. K. (2018) Bayesian analysis of 210Pb dating. *Journal of Agricultural, Biological and Environmental Statistics* 23 (3), 317-333. DOI: 10.1007/s13253-018-0328-7
 
-To use the *SyncER* package, download it from [GitHub](https://github.com/katleenwils/SyncER) and load it into your environment. The example dataset used throughout the vignette is distributed with the package, so no separate download is needed.
+To use the *SyncER* package, download it from [GitHub](https://github.com/katleenwils/SyncER) and load it into your environment. The example dataset used throughout the vignette is distributed as the *SyncERdata* package, which needs to be installed seperately.
 
 ```{r SyncER-install}
 install.packages("remotes")
 remotes::install_github("katleenwils/SyncER")
+remotes::install_github("katleenwils/SyncERdata")
 library(SyncER)
 ```
 
@@ -30,6 +31,7 @@ Once *SyncER* is available on CRAN, you can use the following commands:
 
 ```{r SyncER-install}
 install.packages("SyncER")
+install.packages("SyncERdata")
 library(SyncER)
 ```
 
