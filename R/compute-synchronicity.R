@@ -356,6 +356,8 @@ compute_synchronicity_values <- function(event_stats,
 #' @param fig_width Numeric width of output PDF figures in inches (default: 10).
 #' @param fig_height Numeric height of output PDF figures in inches (default: 8).
 #' @inheritParams plot_pairwise_synchronicity_evaluation
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Invisibly returns \code{synchro_result} unchanged.
 #'
@@ -369,7 +371,8 @@ verify_synchronicity <- function(synchro_result,
                                  offset = bp_datum(),
                                  fig_width = 10,
                                  fig_height = 8,
-                                 plot_opts = list()) {
+                                 plot_opts = list(),
+                                 verbose = TRUE) {
 
   synchro <- synchro_result
 
@@ -383,25 +386,25 @@ verify_synchronicity <- function(synchro_result,
     stats_file <- file.path(output_dir,
                             paste0(group_name, "_stats", synced, ".csv"))
     write.csv(synchro$all_horizon_stats, stats_file, row.names = FALSE)
-    cat(sprintf("\nAll horizon statistics saved to: %s\n", stats_file))
+    if (verbose) message(sprintf("\nAll horizon statistics saved to: %s", stats_file))
   }
 
-  # Print summary to console
+  # Report summary to console
   s <- synchro$summary
-  if (s$total > 0) {
-    cat("\n=== Overall Synchronicity Test Summary ===\n")
-    if (isochron && s$negative_pct > 10) {
-      cat(sprintf(
-        "\n  You have a high percentage (%.2f%%) of ages that do not pass the test.\n   Please verify that your isochrons are correctly labeled!\n\n",
-        s$negative_pct
-      ))
-    }
-    cat("Total comparisons:", s$total, "\n")
-    cat("Pass:", s$positives, sprintf("(%.1f%%)", s$positive_pct),
-        "| Fail:", s$negatives, sprintf("(%.1f%%)\n", s$negative_pct))
-    cat("Lowest score:",  sprintf("%.1f%%", s$min_score * 100),
-        "| Highest score:", sprintf("%.1f%%\n", s$max_score * 100))
-    cat("==========================================\n\n")
+  if (s$total > 0 && isochron && s$negative_pct > 10) {
+    warning(sprintf(
+      "You have a high percentage (%.2f%%) of ages that do not pass the test. Please verify that your isochrons are correctly labeled!",
+      s$negative_pct
+    ), call. = FALSE)
+  }
+  if (verbose && s$total > 0) {
+    message("\n=== Overall Synchronicity Test Summary ===")
+    message("Total comparisons: ", s$total)
+    message("Pass: ", s$positives, sprintf(" (%.1f%%)", s$positive_pct),
+        " | Fail: ", s$negatives, sprintf(" (%.1f%%)", s$negative_pct))
+    message("Lowest score: ",  sprintf("%.1f%%", s$min_score * 100),
+        " | Highest score: ", sprintf("%.1f%%", s$max_score * 100))
+    message("==========================================\n")
   }
 
   # Generate PDFs and console plots
@@ -412,7 +415,8 @@ verify_synchronicity <- function(synchro_result,
     synced         = synced,
     fig_width      = fig_width,
     fig_height     = fig_height,
-    plot_opts      = plot_opts
+    plot_opts      = plot_opts,
+    verbose        = verbose
   )
 
   invisible(synchro_result)
@@ -450,30 +454,42 @@ verify_synchronicity <- function(synchro_result,
 #'   }
 #'
 #' @examples
-#' \dontrun{
-#' # Single sigma for all horizons
-#' thresholds <- compute_isochron_thresholds(adjusted_ages, sigma_multiplier = 2)
+#' \donttest{
+#' if (requireNamespace("SyncERdata", quietly = TRUE)) {
+#'   # Set-up: synchronized ages from the example data of the companion package SyncERdata
+#'   isochrons     <- paste0("isochron", 1:7)
+#'   event_stats   <- process_event_ages(SyncERdata::out_data_ages_synced, isochrons)
+#'   adjusted_ages <- synchronize_ages(event_stats, horizons = isochrons, verbose = FALSE)
 #'
-#' # Different sigma per horizon
-#' thresholds <- compute_isochron_thresholds(
-#'   adjusted_ages,
-#'   sigma_multiplier = c(horizon1 = 2, horizon2 = 1, horizon3 = 1.5)
-#' )
+#'   # Single sigma for all horizons
+#'   thresholds <- compute_isochron_thresholds(adjusted_ages, sigma_multiplier = 2)
 #'
-#' # With custom age offset
-#' thresholds <- compute_isochron_thresholds(
-#'   adjusted_ages,
-#'   sigma_multiplier = 2,
-#'   age_offset = 100
-#' )
+#'   # Different sigma per horizon
+#'   thresholds <- compute_isochron_thresholds(
+#'     adjusted_ages,
+#'     sigma_multiplier = c(isochron1 = 2, isochron2 = 1, isochron3 = 1.5)
+#'   )
 #'
-#' # Use in verify_synchronicity
-#' verify_synchronicity(
-#'   event_stats,
-#'   event_names = names(thresholds$validation_thresholds),
-#'   confidence_level = thresholds$confidence_levels,
-#'   age_difference = thresholds$validation_thresholds
-#' )
+#'   # With custom age offset
+#'   thresholds <- compute_isochron_thresholds(
+#'     adjusted_ages,
+#'     sigma_multiplier = 2,
+#'     age_offset = 100
+#'   )
+#'
+#'   # Use in verify_synchronicity (its first argument is the result of
+#'   # compute_synchronicity_values(); the thresholds are passed to that function)
+#'   synchro <- compute_synchronicity_values(
+#'     event_stats,
+#'     event_names = names(thresholds$validation_thresholds),
+#'     confidence_level = thresholds$confidence_levels,
+#'     age_difference = thresholds$validation_thresholds
+#'   )
+#'   verify_synchronicity(
+#'     synchro,
+#'     event_names = names(thresholds$validation_thresholds)
+#'   )
+#' }
 #' }
 #'
 #' @export

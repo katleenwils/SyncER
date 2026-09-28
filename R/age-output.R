@@ -5,8 +5,8 @@
 #' and finally call \code{write_age_output_data()} to save the processed ages in your folder.
 #'
 #' @param folder_path Character string giving the parent directory that contains
-#'   the per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: \code{"."}, i.e. the working
-#'   directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
+#'   the per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: the directory set by \code{syncer_setup()}, or the current working
+#'   directory if unset, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
 #'   and \code{age_model_input()}).
 #' @param synced Character string suffix used to identify synchronized output folders
 #'   (default: \code{""}; non-empty values such as \code{"_synced"} select only folders
@@ -15,15 +15,18 @@
 #'   progress reporting. Pass \code{NULL} to skip depth messages.
 #' @param instantaneous_event_depths Optional named list of excluded depth intervals per record,
 #'   used only for progress reporting.
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Named list of character vectors (one element per folder / record), where each
 #'   element contains the raw text lines of the corresponding \code{.out} file.
 #'
 #' @export
-read_age_model_output <- function(folder_path = ".",
+read_age_model_output <- function(folder_path = syncer_input_dir(),
                               synced = "",
                               max_depths = NULL,
-                              instantaneous_event_depths = NULL) {
+                              instantaneous_event_depths = NULL,
+                              verbose = TRUE) {
 
   # Discover valid folders based on synced status
   all_folders <- list.dirs(folder_path, recursive = FALSE, full.names = FALSE)
@@ -53,14 +56,14 @@ read_age_model_output <- function(folder_path = ".",
   raw_out_data <- list()
   for (out_file in out_files) {
     folder_name <- basename(dirname(out_file))
-    cat("Processing:", folder_name, "\n")
+    if (verbose) message("Processing: ", folder_name)
 
     temp_data <- readr::read_lines(out_file)
 
     # Report detected separator
     first_line <- temp_data[nchar(trimws(temp_data)) > 0][1]
     sep_label  <- if (grepl(",", first_line)) "comma" else if (grepl("\t", first_line)) "tab" else "whitespace"
-    cat("  Detected separator:", sep_label, "\n")
+    if (verbose) message("  Detected separator: ", sep_label)
 
     # Extract record name for depth reporting
     record_name_local <- if (synced != "") {
@@ -73,14 +76,14 @@ read_age_model_output <- function(folder_path = ".",
       max_depth_original <- max_depths[record_name_local]
       exclusions_local   <- if (!is.null(instantaneous_event_depths)) instantaneous_event_depths[[record_name_local]] else NULL
 
-      cat("  Original max depth:", max_depth_original, "cm\n")
+      if (verbose) message("  Original max depth: ", max_depth_original, " cm")
 
       if (!is.null(exclusions_local) && length(exclusions_local) > 0) {
           exclusion_matrix <- matrix(exclusions_local, ncol = 2, byrow = TRUE)
           total_excl <- sum(exclusion_matrix[, 2] - exclusion_matrix[, 1])
           if (total_excl > 0) {
-            cat("  Total event depth:", total_excl, "cm\n")
-            cat("  Event-free depth:", max_depth_original - total_excl, "cm\n")
+            if (verbose) message("  Total event depth: ", total_excl, " cm")
+            if (verbose) message("  Event-free depth: ", max_depth_original - total_excl, " cm")
           }
         }
       }
@@ -376,8 +379,8 @@ compute_event_ages <- function(raw_out_data,
 #' is \code{TRUE}, the previously exported CSV folder is returned instead.
 #'
 #' @param folder_path Character string giving the parent directory that contains
-#'   per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: \code{"."}, i.e. the working
-#'   directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
+#'   per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: the directory set by \code{syncer_setup()}, or the current working
+#'   directory if unset, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
 #'   and \code{age_model_input()}). Ignored when \code{reload_existing = TRUE}.
 #' @param record_data Named list of data frames representing each record's
 #'   metadata (output from \code{read_record_data()}).
@@ -400,12 +403,14 @@ compute_event_ages <- function(raw_out_data,
 #'   \code{out_data_ages} folder lives; only used when \code{reload_existing = TRUE}
 #'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in
 #'   the working directory).
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Named list of data frames, one per processed record, containing depth
 #'   columns plus one column per event with interpolated ages.
 #'
 #' @export
-load_event_ages <- function(folder_path = ".",
+load_event_ages <- function(folder_path = syncer_input_dir(),
                          record_data,
                          event_types,
                          max_depths,
@@ -415,17 +420,19 @@ load_event_ages <- function(folder_path = ".",
                          reload_existing = FALSE,
                          instantaneous_event_depths = NULL,
                          thick = NULL,
-                         output_dir = syncer_output_dir()) {
+                         output_dir = syncer_output_dir(),
+                         verbose = TRUE) {
 
   if (reload_existing) {
-    return(read_age_data(output_dir, synced = synced))
+    return(read_age_data(output_dir, synced = synced, verbose = verbose))
   }
 
   raw_out_data <- read_age_model_output(
     folder_path     = folder_path,
     synced          = synced,
     max_depths      = max_depths,
-    instantaneous_event_depths = instantaneous_event_depths
+    instantaneous_event_depths = instantaneous_event_depths,
+    verbose         = verbose
   )
 
   compute_event_ages(
@@ -452,13 +459,16 @@ load_event_ages <- function(folder_path = ".",
 #'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).
 #' @param synced Character string suffix for the output folder name (default: "");
 #'   use "_synced" for synchronized data.
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return No return value. Writes one CSV file per record and prints a success message with the folder path.
 #'
 #' @export
 write_age_output_data <- function(out_data,
                             folder_path = syncer_output_dir(),
-                            synced="") {
+                            synced="",
+                            verbose = TRUE) {
 
   # Convert all list elements to data frames
   records_list <- lapply(out_data, as.data.frame)
@@ -475,5 +485,5 @@ write_age_output_data <- function(out_data,
                       file = file.path(output_dir, paste0(record, ".csv")),
                       row.names = FALSE)
   }
-  cat("Data successfully exported to:", output_dir, "\n")
+  if (verbose) message("Data successfully exported to: ", output_dir)
 }

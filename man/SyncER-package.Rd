@@ -4,9 +4,9 @@
 \name{SyncER-package}
 \alias{SyncER}
 \alias{SyncER-package}
-\title{SyncER: Synchronicity testing for Event Records}
+\title{SyncER: Synchronicity Testing for Event Records}
 \description{
-SyncER allows for evaluation of synchronous deposition across different event records using a log-ratio approach. Additionally, it allows syncing age-depth models based on the availability of isochrons.
+Evaluation of synchronous deposition across different event records using a log-ratio approach, and syncing age-depth models based on the availability of isochrons. Following the methodology of Wils & Ramisch (2026) \doi{10.1038/s41598-026-67943-7}. The synthetic example dataset used in the examples, tests and vignette is distributed separately in the companion data package 'SyncERdata'.
 }
 \seealso{
 Useful links:

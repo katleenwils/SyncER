@@ -11,7 +11,8 @@ age_model_input(
   radiocarbon_sample_names = "sample",
   lead_sample_names = "210Pb_sample",
   original_ages = TRUE,
-  base_dir = "."
+  base_dir = syncer_base_dir(),
+  verbose = TRUE
 )
 }
 \arguments{
@@ -42,8 +43,12 @@ only (e.g. a record with poor accuracy); adjust it per record with a named vecto
 \code{c("core1" = FALSE)}. Records not listed fall back to \code{TRUE}. Passed through to
 \code{build_age_input()}.}
 
-\item{base_dir}{Character string specifying the output directory (default: \code{"."}, the
-working directory, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}).}
+\item{base_dir}{Character string specifying the output directory (default:
+\code{syncer_base_dir()}, i.e. the directory chosen with \code{syncer_setup()}, or a temporary
+directory if none was chosen). Use the same folder as the \code{coredir} in \emph{rbacon}/\emph{rplum}.}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 Invisibly, a named list with the same structure as \code{record_data}: the record

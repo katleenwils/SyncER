@@ -4,7 +4,7 @@
 \alias{read_age_data}
 \title{Read age results of age-depth modelling for each of the event horizons}
 \usage{
-read_age_data(folder_path = syncer_output_dir(), synced = "")
+read_age_data(folder_path = syncer_output_dir(), synced = "", verbose = TRUE)
 }
 \arguments{
 \item{folder_path}{Character string specifying the location of the folder to be read
@@ -12,6 +12,9 @@ read_age_data(folder_path = syncer_output_dir(), synced = "")
 
 \item{synced}{Character string suffix for the input folder name (default: "");
 use "_synced" for synchronized data.}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 A named list of data frames, where each element corresponds to one record.
@@ -24,15 +27,24 @@ and returns a named list of data frames. This is the inverse operation of
 load age info into SyncER in case the age-depth models were not constructed using \emph{rbacon}/\emph{rplum}.
 }
 \examples{
-\dontrun{
-# Read non-synchronized data
-out_data <- read_age_data("path/to/folder")
+\donttest{
+if (requireNamespace("SyncERdata", quietly = TRUE)) {
+  # Set-up: save the example data of the companion package SyncERdata to a
+  # temporary folder (stands in for "path/to/folder")
+  folder <- tempdir()
+  write_age_output_data(SyncERdata::out_data_ages, folder, verbose = FALSE)
+  write_age_output_data(SyncERdata::out_data_ages_synced, folder,
+                        synced = "_synced", verbose = FALSE)
 
-# Read synchronized data
-out_data_synced <- read_age_data("path/to/folder", synced = "_synced")
+  # Read non-synchronized data
+  out_data <- read_age_data(folder)
 
-# Use with process_event_ages
-event_stats <- process_event_ages(out_data, event_deposits = c("tephra", "flood"))
+  # Read synchronized data
+  out_data_synced <- read_age_data(folder, synced = "_synced")
+
+  # Use with process_event_ages
+  event_stats <- process_event_ages(out_data, event_deposits = c("tephra", "flood"))
+}
 }
 
 }

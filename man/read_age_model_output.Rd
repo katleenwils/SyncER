@@ -5,16 +5,17 @@
 \title{Read Bacon/Plum age-depth modelling output files}
 \usage{
 read_age_model_output(
-  folder_path = ".",
+  folder_path = syncer_input_dir(),
   synced = "",
   max_depths = NULL,
-  instantaneous_event_depths = NULL
+  instantaneous_event_depths = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
 \item{folder_path}{Character string giving the parent directory that contains
-the per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: \code{"."}, i.e. the working
-directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
+the per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: the directory set by \code{syncer_setup()}, or the current working
+directory if unset, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
 and \code{age_model_input()}).}
 
 \item{synced}{Character string suffix used to identify synchronized output folders
@@ -26,6 +27,9 @@ progress reporting. Pass \code{NULL} to skip depth messages.}
 
 \item{instantaneous_event_depths}{Optional named list of excluded depth intervals per record,
 used only for progress reporting.}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 Named list of character vectors (one element per folder / record), where each

@@ -8,7 +8,8 @@ assign_nonsynchro_age(
   adjusted_ages,
   nonsynchro_horizons,
   event_stats,
-  horizon_groups = NULL
+  horizon_groups = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -23,6 +24,9 @@ assign_nonsynchro_age(
 passed to \code{synchronize_ages()} / \code{compute_synchronized_ages()}. Used to map an
 excluded member label to the group whose synchronized age it should take (default:
 \code{NULL}).}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 Named list with one element per excluded horizon, each containing a data frame

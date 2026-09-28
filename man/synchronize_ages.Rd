@@ -19,7 +19,8 @@ synchronize_ages(
   seed = 5128,
   n_samples = 10000,
   bayes_plot_opts = list(),
-  horizon_groups = NULL
+  horizon_groups = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -114,6 +115,9 @@ that belong to each group (e.g., \code{list(tephra = c("tephra1", "tephra1a"))})
 \code{NULL} (default) each horizon in \code{horizons} is treated as standalone. Use
 this to explicitly declare which horizon names across records belong to the same
 depositional event.}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 Named list of synchronized ages (one element per horizon), as returned

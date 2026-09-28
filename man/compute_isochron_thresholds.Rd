@@ -41,34 +41,46 @@ Calculates empirically-based validation thresholds and confidence levels from sy
 age data for use in subsequent synchronicity testing. Calculates the coefficient of variation (CV = sigma/mu) from synchronized ages,
 multiplies by user-specified sigma values to generate age difference thresholds, and
 converts sigma values to confidence levels using the standard normal distribution.
-The age offset is added before calculating CV to ensure consistency across calculations.
+The age offset is added before calculating CV to ensure consistency accross calculations.
 These thresholds can be directly used in \code{verify_synchronicity()} for synchronicity testing.
 }
 \examples{
-\dontrun{
-# Single sigma for all horizons
-thresholds <- compute_isochron_thresholds(adjusted_ages, sigma_multiplier = 2)
+\donttest{
+if (requireNamespace("SyncERdata", quietly = TRUE)) {
+  # Set-up: synchronized ages from the example data of the companion package SyncERdata
+  isochrons     <- paste0("isochron", 1:7)
+  event_stats   <- process_event_ages(SyncERdata::out_data_ages_synced, isochrons)
+  adjusted_ages <- synchronize_ages(event_stats, horizons = isochrons, verbose = FALSE)
 
-# Different sigma per horizon
-thresholds <- compute_isochron_thresholds(
-  adjusted_ages,
-  sigma_multiplier = c(horizon1 = 2, horizon2 = 1, horizon3 = 1.5)
-)
+  # Single sigma for all horizons
+  thresholds <- compute_isochron_thresholds(adjusted_ages, sigma_multiplier = 2)
 
-# With custom age offset
-thresholds <- compute_isochron_thresholds(
-  adjusted_ages,
-  sigma_multiplier = 2,
-  age_offset = 100
-)
+  # Different sigma per horizon
+  thresholds <- compute_isochron_thresholds(
+    adjusted_ages,
+    sigma_multiplier = c(horizon1 = 2, horizon2 = 1, horizon3 = 1.5)
+  )
 
-# Use in verify_synchronicity
-verify_synchronicity(
-  event_stats,
-  event_names = names(thresholds$validation_thresholds),
-  confidence_level = thresholds$confidence_levels,
-  age_difference = thresholds$validation_thresholds
-)
+  # With custom age offset
+  thresholds <- compute_isochron_thresholds(
+    adjusted_ages,
+    sigma_multiplier = 2,
+    age_offset = 100
+  )
+
+  # Use in verify_synchronicity (its first argument is the result of
+  # compute_synchronicity_values(); the thresholds are passed to that function)
+  synchro <- compute_synchronicity_values(
+    event_stats,
+    event_names = names(thresholds$validation_thresholds),
+    confidence_level = thresholds$confidence_levels,
+    age_difference = thresholds$validation_thresholds
+  )
+  verify_synchronicity(
+    synchro,
+    event_names = names(thresholds$validation_thresholds)
+  )
+}
 }
 
 }

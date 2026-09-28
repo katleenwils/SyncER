@@ -14,7 +14,8 @@ verify_synchronicity(
   offset = bp_datum(),
   fig_width = 10,
   fig_height = 8,
-  plot_opts = list()
+  plot_opts = list(),
+  verbose = TRUE
 )
 }
 \arguments{
@@ -56,6 +57,9 @@ fail, and the CSV file is named \code{"isochron"} by default (default: \code{FAL
 \item \code{age_axis_label}: age distribution panel's x-axis label
 (default: \code{"Age (cal yrs BP)"})
 }}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 Invisibly returns \code{synchro_result} unchanged.

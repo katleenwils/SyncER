@@ -18,16 +18,7 @@ If you make use of the built-in compatibility with *rplum* for age-depth modelli
 
 > Aquino-López, M. A., Blaauw, M., Christen, J.A., and Sanderson, N. K. (2018) Bayesian analysis of 210Pb dating. *Journal of Agricultural, Biological and Environmental Statistics* 23 (3), 317-333. DOI: 10.1007/s13253-018-0328-7
 
-To use the *SyncER* package, download it from [GitHub](https://github.com/katleenwils/SyncER) and load it into your environment. The example dataset used throughout the vignette is distributed as the *SyncERdata* package, which needs to be installed seperately.
-
-```{r SyncER-install}
-install.packages("remotes")
-remotes::install_github("katleenwils/SyncER")
-remotes::install_github("katleenwils/SyncERdata")
-library(SyncER)
-```
-
-Once *SyncER* is available on CRAN, you can use the following commands:
+To use the *SyncER* package, download it from CRAN and load it into your environment. The example dataset used throughout the vignette is distributed as the *SyncERdata* package, which needs to be installed separately.
 
 ```{r SyncER-install}
 install.packages("SyncER")

@@ -4,11 +4,14 @@
 \alias{read_record_data}
 \title{Load age input data and event depths}
 \usage{
-read_record_data(folder_path = ".", file_name = "record_data_input")
+read_record_data(
+  folder_path = syncer_input_dir(),
+  file_name = "record_data_input"
+)
 }
 \arguments{
 \item{folder_path}{Character string specifying the path to the folder containing your input file
-(default: \code{"."}, i.e. the working directory set by \code{syncer_setup()}).}
+(default: the directory set by \code{syncer_setup()}, or the current working directory if unset).}
 
 \item{file_name}{Character string specifying the name of the subfolder (inside \code{folder_path})
 that holds your input CSV files (default: \code{"record_data_input"}). This folder holds one

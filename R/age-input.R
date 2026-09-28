@@ -307,11 +307,14 @@ next_generation_name <- function(record_key, base_dir) {
 #'   data frame, as returned by \code{build_age_input()}.
 #' @param out_key Character key naming the output folder and file stem.
 #' @param base_dir Character path the \code{out_key} folder is created under.
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Invisibly \code{NULL}; called for its side effect of writing CSV files.
 #'
 #' @keywords internal
-write_age_input_data <- function(age_input, out_key, base_dir) {
+write_age_input_data <- function(age_input, out_key, base_dir,
+                           verbose = TRUE) {
 
   folder <- file.path(base_dir, out_key)
   if (!dir.exists(folder)) dir.create(folder, recursive = TRUE)
@@ -319,12 +322,12 @@ write_age_input_data <- function(age_input, out_key, base_dir) {
   has_lead <- !is.null(age_input$pb210)
   c14_path <- file.path(folder, if (has_lead) paste0(out_key, "_C14.csv") else paste0(out_key, ".csv"))
   write.csv(age_input$c14, c14_path, row.names = FALSE, quote = FALSE, na = "")
-  message("C14 data for ", out_key, " saved to: ", c14_path)
+  if (verbose) message("C14 data for ", out_key, " saved to: ", c14_path)
 
   if (has_lead) {
     pb_path <- file.path(folder, paste0(out_key, ".csv"))
     write.csv(age_input$pb210, pb_path, row.names = FALSE, quote = FALSE, na = "")
-    message("Pb210 data for ", out_key, " saved to: ", pb_path)
+    if (verbose) message("Pb210 data for ", out_key, " saved to: ", pb_path)
   }
 }
 
@@ -356,8 +359,11 @@ write_age_input_data <- function(age_input, out_key, base_dir) {
 #'   only (e.g. a record with poor accuracy); adjust it per record with a named vector such as
 #'   \code{c("core1" = FALSE)}. Records not listed fall back to \code{TRUE}. Passed through to
 #'   \code{build_age_input()}.
-#' @param base_dir Character string specifying the output directory (default: \code{"."}, the
-#'   working directory, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}).
+#' @param base_dir Character string specifying the output directory (default:
+#'   \code{syncer_base_dir()}, i.e. the directory chosen with \code{syncer_setup()}, or a temporary
+#'   directory if none was chosen). Use the same folder as the \code{coredir} in \emph{rbacon}/\emph{rplum}.
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Invisibly, a named list with the same structure as \code{record_data}: the record
 #'   frames with the new synchronized ages baked in, keyed by the folder generation that was
@@ -371,7 +377,8 @@ age_model_input <- function(record_data,
                             radiocarbon_sample_names = "sample",
                             lead_sample_names = "210Pb_sample",
                             original_ages = TRUE,
-                            base_dir = ".") {
+                            base_dir = syncer_base_dir(),
+                            verbose = TRUE) {
 
   result <- list()
 
@@ -405,7 +412,7 @@ age_model_input <- function(record_data,
     }
 
     # 5. Write the CSV(s).
-    write_age_input_data(age_input, out_key, base_dir)
+    write_age_input_data(age_input, out_key, base_dir, verbose = verbose)
 
     # 6. Collect the updated frame, keyed by the folder that was written.
     result[[out_key]] <- frame
@@ -438,6 +445,8 @@ age_model_input <- function(record_data,
 #'   passed to \code{synchronize_ages()} / \code{compute_synchronized_ages()}. Used to map an
 #'   excluded member label to the group whose synchronized age it should take (default:
 #'   \code{NULL}).
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Named list with one element per excluded horizon, each containing a data frame
 #'   with columns: \code{record}, \code{adjusted_age}, \code{adjusted_error}.
@@ -446,7 +455,8 @@ age_model_input <- function(record_data,
 assign_nonsynchro_age <- function(adjusted_ages,
                                  nonsynchro_horizons,
                                  event_stats,
-                                 horizon_groups = NULL) {
+                                 horizon_groups = NULL,
+                                 verbose = TRUE) {
   
   excl_parsed         <- parse_excluded_horizons(nonsynchro_horizons, names(event_stats$processed))
   per_record_excluded <- excl_parsed$per_record_excluded
@@ -517,8 +527,8 @@ assign_nonsynchro_age <- function(adjusted_ages,
         stringsAsFactors = FALSE
       ))
 
-      cat(sprintf(
-        "Assigned %.1f +/- %.1f to excluded '%s' in record '%s' using group '%s'\n",
+      if (verbose) message(sprintf(
+        "Assigned %.1f +/- %.1f to excluded '%s' in record '%s' using group '%s'",
         ref_row$adjusted_age[1], ref_row$adjusted_error[1], ex_h, rec, grp
       ))
     }
@@ -535,7 +545,7 @@ assign_nonsynchro_age <- function(adjusted_ages,
 #' missing required columns ('depth' or 'C14_age'), warnings are issued and NA values are returned.
 #'
 #' @param folder_path Character string specifying the path to the folder containing your input file
-#'   (default: \code{"."}, i.e. the working directory set by \code{syncer_setup()}).
+#'   (default: the directory set by \code{syncer_setup()}, or the current working directory if unset).
 #' @param file_name Character string specifying the name of the subfolder (inside \code{folder_path})
 #'   that holds your input CSV files (default: \code{"record_data_input"}). This folder holds one
 #'   \strong{CSV file per record} (named \code{<record>.csv}), and each file gives, for every dated
@@ -554,7 +564,7 @@ assign_nonsynchro_age <- function(adjusted_ages,
 #'   }
 #'
 #' @export
-read_record_data <- function(folder_path = ".",
+read_record_data <- function(folder_path = syncer_input_dir(),
                             file_name="record_data_input") {
 
   # Construct full path to the folder holding one CSV file per record
@@ -631,25 +641,37 @@ read_record_data <- function(folder_path = ".",
 #'   (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in the working directory).
 #' @param synced Character string suffix for the input folder name (default: "");
 #'   use "_synced" for synchronized data.
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return A named list of data frames, where each element corresponds to one record. 
 #' List names match the CSV file names (without extension).
 #'
 #' @examples
-#' \dontrun{
-#' # Read non-synchronized data
-#' out_data <- read_age_data("path/to/folder")
+#' \donttest{
+#' if (requireNamespace("SyncERdata", quietly = TRUE)) {
+#'   # Set-up: save the example data of the companion package SyncERdata to a
+#'   # temporary folder (stands in for "path/to/folder")
+#'   folder <- tempdir()
+#'   write_age_output_data(SyncERdata::out_data_ages, folder, verbose = FALSE)
+#'   write_age_output_data(SyncERdata::out_data_ages_synced, folder,
+#'                         synced = "_synced", verbose = FALSE)
 #'
-#' # Read synchronized data
-#' out_data_synced <- read_age_data("path/to/folder", synced = "_synced")
+#'   # Read non-synchronized data
+#'   out_data <- read_age_data(folder)
 #'
-#' # Use with process_event_ages
-#' event_stats <- process_event_ages(out_data, event_deposits = c("tephra", "flood"))
+#'   # Read synchronized data
+#'   out_data_synced <- read_age_data(folder, synced = "_synced")
+#'
+#'   # Use with process_event_ages
+#'   event_stats <- process_event_ages(out_data, event_deposits = c("isochron1", "synchro-test"))
+#' }
 #' }
 #'
 #' @export
 read_age_data <- function(folder_path = syncer_output_dir(),
-                            synced = "") {
+                            synced = "",
+                            verbose = TRUE) {
 
   # Construct input directory
   input_dir <- file.path(folder_path, paste0("out_data_ages", synced))
@@ -679,8 +701,8 @@ read_age_data <- function(folder_path = syncer_output_dir(),
     record_names
   )
 
-  cat("Data successfully read from:", input_dir, "\n")
-  cat("Loaded", length(out_data), "record(s):", paste(names(out_data), collapse = ", "), "\n")
+  if (verbose) message("Data successfully read from: ", input_dir)
+  if (verbose) message("Loaded ", length(out_data), " record(s): ", paste(names(out_data), collapse = ", "))
 
   return(out_data)
 }

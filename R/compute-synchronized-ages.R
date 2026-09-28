@@ -75,6 +75,8 @@
 #'   \code{NULL} (default) each horizon in \code{horizons} is treated as standalone. Use
 #'   this to explicitly declare which horizon names across records belong to the same
 #'   depositional event.
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Named list with two elements:
 #'   \itemize{
@@ -99,7 +101,8 @@ compute_synchronized_ages <- function(event_stats,
                                       seed = 5128,
                                       n_samples = 10000,
                                       bayes_plot_opts = list(),
-                                      horizon_groups = NULL) {
+                                      horizon_groups = NULL,
+                                      verbose = TRUE) {
 
   # Set random seed for reproducibility
   set.seed(seed)
@@ -363,7 +366,7 @@ compute_synchronized_ages <- function(event_stats,
       }
       excluded_present <- intersect(excluded_recs_h, names(original_ages_list))
       if (length(excluded_present) > 0) {
-        cat(sprintf("  Excluding record(s) from %s calculation: %s\n",
+        if (verbose) message(sprintf("  Excluding record(s) from %s calculation: %s",
                     method_h, paste(excluded_present, collapse = ", ")))
       }
     }
@@ -459,7 +462,7 @@ compute_synchronized_ages <- function(event_stats,
       adj_age_value <- mean_age - offset
       adj_error_value <- abs(mean_age) * cv
 
-      cat(sprintf("Using mean age for %s \nAdjusted age: %.1f +/- %.1f cal yrs BP\n\n",
+      if (verbose) message(sprintf("Using mean age for %s \nAdjusted age: %.1f +/- %.1f cal yrs BP\n",
                   group_name, adj_age_value, adj_error_value))
 
       # Build output dataframe
@@ -510,7 +513,7 @@ compute_synchronized_ages <- function(event_stats,
       adj_age_value <- mean_age - offset
       adj_error_value <- fixed_error
 
-      cat(sprintf("Using mean age with fixed error for %s \nAdjusted age: %.1f +/- %.1f cal yrs BP\n\n",
+      if (verbose) message(sprintf("Using mean age with fixed error for %s \nAdjusted age: %.1f +/- %.1f cal yrs BP\n",
                   group_name, adj_age_value, adj_error_value))
 
       # Build output
@@ -544,7 +547,7 @@ compute_synchronized_ages <- function(event_stats,
     #==========================================================================
     else if (method_h == "Bayesian") {
 
-      cat("Using Bayesian MC combined age for", group_name, "\n")
+      if (verbose) message("Using Bayesian MC combined age for ", group_name)
 
       valid_records <- names(calc_ages_list)
       samples_list  <- unname(calc_ages_list)
@@ -569,7 +572,7 @@ compute_synchronized_ages <- function(event_stats,
       mu_comb <- comb$mean
       sigma_comb <- comb$sd
 
-      cat(sprintf("Adjusted age: %.1f +/- %.1f cal yrs BP\n\n",
+      if (verbose) message(sprintf("Adjusted age: %.1f +/- %.1f cal yrs BP\n",
                   mu_comb, sigma_comb))
 
       # Store raw data for plotting by synchronize_ages via plot_bayesian_age_combination()
@@ -626,7 +629,7 @@ compute_synchronized_ages <- function(event_stats,
                         group_name, age_record))
         next
       } else {
-        cat("Using age of", age_record, "for", group_name, "\n")
+        if (verbose) message("Using age of ", age_record, " for ", group_name)
       }
 
       # Extract retained horizon for reference record
@@ -663,7 +666,7 @@ compute_synchronized_ages <- function(event_stats,
         if (is.na(sigma0) || sigma0 == 0) sigma0 <- 1
       }
 
-      cat(sprintf("Adjusted age: %.1f +/- %.1f cal yrs BP\n\n",
+      if (verbose) message(sprintf("Adjusted age: %.1f +/- %.1f cal yrs BP\n",
                   age0 - offset, sigma0))
 
       # Build data frame
@@ -722,7 +725,7 @@ compute_synchronized_ages <- function(event_stats,
         0
       }
 
-      cat(sprintf("Using age of %.1f +/- %.1f (cc = %d) for %s\n\n", age0, sigma0, cc0, group_name))
+      if (verbose) message(sprintf("Using age of %.1f +/- %.1f (cc = %d) for %s\n", age0, sigma0, cc0, group_name))
 
       adjusted_ages_df <- data.frame(
         record         = records_with_horizon,
@@ -766,6 +769,8 @@ compute_synchronized_ages <- function(event_stats,
 #'   \code{compute_synchronized_ages()}. Supported keys: \code{fig_width},
 #'   \code{fig_height}, \code{plot_range_sigma}, \code{posterior_lwd},
 #'   \code{combined_lwd}, \code{legend_pos}.
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Named list of synchronized ages (one element per horizon), as returned
 #'   by \code{compute_synchronized_ages()$adjusted_ages}.
@@ -785,7 +790,8 @@ synchronize_ages <- function(event_stats,
                         seed = 5128,
                         n_samples = 10000,
                         bayes_plot_opts = list(),
-                        horizon_groups = NULL) {
+                        horizon_groups = NULL,
+                        verbose = TRUE) {
 
   result <- compute_synchronized_ages(
     event_stats       = event_stats,
@@ -801,11 +807,12 @@ synchronize_ages <- function(event_stats,
     seed              = seed,
     n_samples         = n_samples,
     bayes_plot_opts   = bayes_plot_opts,
-    horizon_groups    = horizon_groups
+    horizon_groups    = horizon_groups,
+    verbose           = verbose
   )
 
   for (pd in result$bayesian_plot_data) {
-    plot_bayesian_age_combination(pd, output_dir = output_dir)
+    plot_bayesian_age_combination(pd, output_dir = output_dir, verbose = verbose)
   }
 
   invisible(result$adjusted_ages)

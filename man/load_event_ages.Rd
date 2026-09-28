@@ -5,7 +5,7 @@
 \title{Load and store event ages from Bacon/Plum output files}
 \usage{
 load_event_ages(
-  folder_path = ".",
+  folder_path = syncer_input_dir(),
   record_data,
   event_types,
   max_depths,
@@ -15,13 +15,14 @@ load_event_ages(
   reload_existing = FALSE,
   instantaneous_event_depths = NULL,
   thick = NULL,
-  output_dir = syncer_output_dir()
+  output_dir = syncer_output_dir(),
+  verbose = TRUE
 )
 }
 \arguments{
 \item{folder_path}{Character string giving the parent directory that contains
-per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: \code{"."}, i.e. the working
-directory itself, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
+per-record \emph{rbacon}/\emph{rplum} output sub-folders (default: the directory set by \code{syncer_setup()}, or the current working
+directory if unset, matching the \code{coredir} used by \emph{rbacon}/\emph{rplum}
 and \code{age_model_input()}). Ignored when \code{reload_existing = TRUE}.}
 
 \item{record_data}{Named list of data frames representing each record's
@@ -54,6 +55,9 @@ it is derived per record from the model as \code{max_depths[record] / (n_cols - 
 \code{out_data_ages} folder lives; only used when \code{reload_existing = TRUE}
 (default: \code{syncer_output_dir()}, i.e. the \code{SyncER_outputs} folder in
 the working directory).}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 Named list of data frames, one per processed record, containing depth

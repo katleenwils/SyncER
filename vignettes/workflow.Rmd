@@ -7,64 +7,44 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-## Step 0: Load and set-up *SyncER* package
+## Step 0: Load and set-up *SyncER* example data
+
+This vignette's example dataset is distributed separately in the companion package *SyncERdata* (a `Suggests` dependency, not required to use *SyncER* itself on your own data). Install it with `install.packages("SyncERdata")` to run the vignette yourself.
 
 ```{r SyncER-load}
 library(SyncER)
-```
-
-```{r check-data, include = FALSE}
-# The example dataset used throughout this vignette lives in the companion
-# SyncERdata package (Suggests), so make sure to install that before running this vignette workflow.
 has_data <- requireNamespace("SyncERdata", quietly = TRUE)
-knitr::opts_chunk$set(eval = has_data)
+knitr::opts_chunk$set(eval = has_data) # every chunk below needs SyncERdata; skip them all if it's missing
 ```
 
 ```{r data-missing-notice, echo = FALSE, eval = !has_data, results = "asis"}
-cat(
-  "_The `SyncERdata` package, which provides this vignette's example",
-  "dataset, is not installed. Install it with",
-  "`install.packages(\"SyncERdata\")` to run the rest of this walkthrough",
-  "locally; the explanatory text below still applies to your own data._"
-)
+cat("_SyncERdata is not installed, so the rest of this vignette is not evaluated;",
+    "the explanatory text below still applies to your own data._")
 ```
 
 ```{r setup}
-# --- Choose where this example should run ------------------------------------
+# Choose where this example should run (syncer_wd), and copy the bundled SyncERdata example into it. Default is a temporary directory.
 syncer_wd <- file.path(tempdir(), "SyncER_example")
-dir.create(syncer_wd, recursive = TRUE, showWarnings = FALSE)
 
-# Copy the raw input CSVs bundled in SyncERdata into syncer_wd.
-example_dir <- system.file("extdata", "record_data_input", package = "SyncERdata")
-dir.create(file.path(syncer_wd, "record_data_input"), showWarnings = FALSE)
-invisible(file.copy(list.files(example_dir, full.names = TRUE),
-                    file.path(syncer_wd, "record_data_input"), overwrite = TRUE))
+dir.create(file.path(syncer_wd, "record_data_input"), recursive = TRUE, showWarnings = FALSE)
+invisible(file.copy(
+  list.files(system.file("extdata", "record_data_input", package = "SyncERdata"), full.names = TRUE),
+  file.path(syncer_wd, "record_data_input"), overwrite = TRUE
+))
 
-# Restore the completed Bacon/Plum model output shipped as SyncERdata::bacon_out_files
+# Restore the completed Bacon/Plum output shipped as SyncERdata::bacon_out_files
 # (a named list of file lines, keyed by relative output path) back to real files.
-restore_out_files <- function(out_data, target_base_dir) {
-  for (rel_path in names(out_data)) {
-    full_path <- file.path(target_base_dir, rel_path)
-    dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
-    readr::write_lines(out_data[[rel_path]], full_path)
-  }
+for (rel_path in names(SyncERdata::bacon_out_files)) {
+  full_path <- file.path(syncer_wd, rel_path)
+  dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
+  readr::write_lines(SyncERdata::bacon_out_files[[rel_path]], full_path)
 }
 
-# Restore the posterior age-sample tables shipped as SyncERdata list-of-data-frames
-# objects back to one CSV per record.
-restore_csv_dir <- function(data_list, target_dir) {
-  dir.create(target_dir, recursive = TRUE, showWarnings = FALSE)
-  for (nm in names(data_list)) {
-    write.csv(data_list[[nm]], file.path(target_dir, paste0(nm, ".csv")),
-              row.names = FALSE)
-  }
-}
-
-restore_out_files(SyncERdata::bacon_out_files, syncer_wd)
-restore_csv_dir(SyncERdata::out_data_ages,
-                file.path(syncer_wd, "SyncER_outputs", "out_data_ages"))
-restore_csv_dir(SyncERdata::out_data_ages_synced,
-                file.path(syncer_wd, "SyncER_outputs", "out_data_ages_synced"))
+# Restore the posterior age-sample tables shipped as SyncERdata list-of-data-frame objects,
+# using SyncER's own write_age_output_data() to write one CSV per record.
+out_dir <- file.path(syncer_wd, "SyncER_outputs")
+write_age_output_data(SyncERdata::out_data_ages, out_dir, verbose = FALSE)
+write_age_output_data(SyncERdata::out_data_ages_synced, out_dir, synced = "_synced", verbose = FALSE)
 
 # Run every following chunk from that folder.
 knitr::opts_knit$set(root.dir = syncer_wd)

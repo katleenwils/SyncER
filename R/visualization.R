@@ -243,6 +243,8 @@ plot_pairwise_synchronicity_evaluation <- function(Amin,
 #' @param fig_width Numeric width of output PDF figures in inches (default: 10).
 #' @param fig_height Numeric height of output PDF figures in inches (default: 8).
 #' @inheritParams plot_pairwise_synchronicity_evaluation
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Invisibly returns \code{NULL}.
 #'
@@ -253,12 +255,13 @@ plot_synchronicity_evaluation <- function(synchro_result,
                                synced     = "",
                                fig_width  = 10,
                                fig_height = 8,
-                               plot_opts  = list()) {
+                               plot_opts  = list(),
+                               verbose = TRUE) {
 
   viz_data <- synchro_result$viz_data
   if (is.null(viz_data) || nrow(viz_data) == 0) return(invisible(NULL))
 
-  cat("Printing comparison PDFs...\n")
+  if (verbose) message("Printing comparison PDFs...")
   out_dir <- output_dir
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -323,11 +326,14 @@ plot_synchronicity_evaluation <- function(synchro_result,
 #'   excluded from the combination); when absent, no excluded records are drawn.
 #' @param output_dir Character string; directory the PDF is saved to. Pass
 #'   \code{NULL} to skip PDF output.
+#' @param verbose Logical; if \code{TRUE} (default), progress and summary messages are
+#'   printed via \code{message()}. Set to \code{FALSE} to suppress them.
 #'
 #' @return Invisibly returns \code{NULL}.
 #'
 #' @export
-plot_bayesian_age_combination <- function(pd, output_dir = NULL) {
+plot_bayesian_age_combination <- function(pd, output_dir = NULL,
+verbose = TRUE) {
 
   samples_list_shifted <- pd$samples_list_shifted
   combined_pdf_x       <- pd$combined_pdf_x
@@ -398,7 +404,7 @@ plot_bayesian_age_combination <- function(pd, output_dir = NULL) {
     pdf(pdf_path, width = bayes_opts$fig_width, height = bayes_opts$fig_height)
     draw_plot()
     dev.off()
-    message("Saved Bayesian plot: ", pdf_path)
+    if (verbose) message("Saved Bayesian plot: ", pdf_path)
   }
 
   invisible(NULL)

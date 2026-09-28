@@ -4,7 +4,7 @@
 \alias{write_age_input_data}
 \title{Write a build_age_input() result to a folder}
 \usage{
-write_age_input_data(age_input, out_key, base_dir)
+write_age_input_data(age_input, out_key, base_dir, verbose = TRUE)
 }
 \arguments{
 \item{age_input}{List with a \code{c14} data frame and optional \code{pb210}
@@ -13,6 +13,9 @@ data frame, as returned by \code{build_age_input()}.}
 \item{out_key}{Character key naming the output folder and file stem.}
 
 \item{base_dir}{Character path the \code{out_key} folder is created under.}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 Invisibly \code{NULL}; called for its side effect of writing CSV files.

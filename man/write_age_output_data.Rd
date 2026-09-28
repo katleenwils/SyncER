@@ -4,7 +4,12 @@
 \alias{write_age_output_data}
 \title{Write age data (including event ages) into CSV files}
 \usage{
-write_age_output_data(out_data, folder_path = syncer_output_dir(), synced = "")
+write_age_output_data(
+  out_data,
+  folder_path = syncer_output_dir(),
+  synced = "",
+  verbose = TRUE
+)
 }
 \arguments{
 \item{out_data}{Named list of data frames where each element will become a separate CSV file.}
@@ -14,6 +19,9 @@ write_age_output_data(out_data, folder_path = syncer_output_dir(), synced = "")
 
 \item{synced}{Character string suffix for the output folder name (default: "");
 use "_synced" for synchronized data.}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 No return value. Writes one CSV file per record and prints a success message with the folder path.

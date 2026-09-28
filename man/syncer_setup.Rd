@@ -4,22 +4,35 @@
 \alias{syncer_setup}
 \title{Set up SyncER working directory and output folder}
 \usage{
-syncer_setup(wd = getOption("SyncER.wd"))
+syncer_setup(wd = getOption("SyncER.wd"), verbose = TRUE)
 }
 \arguments{
-\item{wd}{Character string giving the working directory to use. If
+\item{wd}{Character string giving the directory \emph{SyncER} should use. If
 omitted, first checks \code{options(SyncER.wd = ...)}; if that is unset
 and the session is interactive, asks for a path via \code{readline()}.
-Leave blank (or pass \code{""}) to keep the current working directory.}
+Leave blank (or pass \code{""}) to use the current working directory.}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 Invisibly returns the path to the \code{SyncER_outputs} directory.
 }
 \description{
-Sets the working directory \emph{SyncER} should use, and ensures a \code{SyncER_outputs} folder exists there
-for output files. Call it yourself once, after \code{library(SyncER)}, at the top of your analysis
-script. The chosen directory is remembered (via \code{options(SyncER.wd = ...)}) and used as the
-default output location by every other \emph{SyncER} function for the rest of the session. If you
-never call this function, those functions default to a per-session temporary directory instead
-(see \code{\link{syncer_output_dir}}).
+Optional first step of a \emph{SyncER} script: choose the folder \emph{SyncER} should work in
+(holding your \code{record_data_input} folder and the age-depth model folders, and receiving all
+output in a \code{SyncER_outputs} subfolder). The choice is remembered for the rest of the R session
+(via \code{options(SyncER.wd = ...)}) and used as the default location by the other \emph{SyncER}
+functions, so you only need to set it once, at the top of your script. If the folder does not
+exist yet, it is created. \strong{Your R working directory (\code{getwd()}) is never changed.}
+If you never call this function, input is read from the current working directory and output is
+written to a per-session temporary directory (see \code{\link{syncer_output_dir}}), so
+\emph{SyncER} never writes to your file space without being asked to.
+}
+\examples{
+# Use a temporary directory (never write to your own file space in examples)
+old <- options(SyncER.wd = getOption("SyncER.wd"))
+syncer_setup(wd = tempdir())
+options(old) # restore the previous setting
+
 }

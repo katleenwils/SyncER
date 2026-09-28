@@ -3,7 +3,7 @@ Title: Synchronicity Testing for Event Records
 Version: 1.0.0
 Authors@R: person("Katleen", "Wils", email = "katleen.wils@ugent.be",
                   role = c("aut", "cre"))
-Description: Evaluation of synchronous deposition across different event records using a log-ratio approach, and syncing age-depth models based on the availability of isochrons. Following the methodology of Wils & Ramisch (2026) <doi:10.1038/s41598-026-67943-7>. 
+Description: Evaluation of synchronous deposition across different event records using a log-ratio approach, and syncing age-depth models based on the availability of isochrons. Following the methodology of Wils & Ramisch (2026) <doi:10.1038/s41598-026-67943-7>. The synthetic example dataset used in the examples, tests and vignette is distributed separately in the companion data package 'SyncERdata'.
 License: GPL (>= 3)
 URL: https://github.com/katleenwils/SyncER
 BugReports: https://github.com/katleenwils/SyncER/issues
@@ -22,10 +22,8 @@ Suggests:
     rmarkdown,
     rbacon,
     rplum,
-    SyncERdata (>= 0.1.0),
+    SyncERdata (>= 1.0.0),
     testthat (>= 3.0.0)
-Remotes:
-    katleenwils/SyncERdata
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
 VignetteBuilder: knitr

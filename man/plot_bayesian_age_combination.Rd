@@ -4,7 +4,7 @@
 \alias{plot_bayesian_age_combination}
 \title{Plot Bayesian age combination results}
 \usage{
-plot_bayesian_age_combination(pd, output_dir = NULL)
+plot_bayesian_age_combination(pd, output_dir = NULL, verbose = TRUE)
 }
 \arguments{
 \item{pd}{Named list for a single horizon, as stored in
@@ -17,6 +17,9 @@ excluded from the combination); when absent, no excluded records are drawn.}
 
 \item{output_dir}{Character string; directory the PDF is saved to. Pass
 \code{NULL} to skip PDF output.}
+
+\item{verbose}{Logical; if \code{TRUE} (default), progress and summary messages are
+printed via \code{message()}. Set to \code{FALSE} to suppress them.}
 }
 \value{
 Invisibly returns \code{NULL}.
